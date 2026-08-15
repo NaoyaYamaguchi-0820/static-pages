@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>なんのえかな？クイズ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="clouds" aria-hidden="true">
+    <span class="cloud c1">☁️</span>
+    <span class="cloud c2">☁️</span>
+    <span class="cloud c3">☁️</span>
+  </div>
+
+  <header class="page-header">
+    <h1><span class="wobble">🎨</span> なんの えかな？ クイズ <span class="wobble">🐣</span></h1>
+    <p class="subtitle">いらすとや の えが とうじょう！ よくみて あててみよう！</p>
+  </header>
+
+  <main class="quiz-card">
+    <div class="frame-wrap">
+      <div id="loading" class="loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>えを よみこみ中… ⏳</p>
+      </div>
+
+      <div id="frameBox" class="frame-box">
+        <iframe
+          id="quizFrame"
+          title="いらすとやの ランダムな え"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        ></iframe>
+        <div id="overlay" class="overlay">
+          <div class="overlay-inner">
+            <div class="big-mark">？</div>
+            <p>なにの えが かくれてるかな？</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="fallback" class="fallback" hidden>
+        <p>あれれ？ この ブラウザでは えが うまく みられないみたい…</p>
+        <p>したの ボタンから ちょくせつ みてみよう！</p>
+      </div>
+    </div>
+
+    <div id="answerBanner" class="answer-banner" role="status" aria-live="polite" hidden>
+      🎉 こたえは これだ！ 🎉
+    </div>
+
+    <div class="button-row">
+      <button id="answerBtn" class="btn btn-answer" type="button" disabled>
+        👀 こたえを みる！
+      </button>
+      <button id="nextBtn" class="btn btn-next" type="button">
+        🔄 つぎの もんだい
+      </button>
+    </div>
+
+    <div class="button-row secondary-row">
+      <a id="openDirect" class="btn btn-outline" href="https://www.irasutoya.com/2014/03/blog-post_869.html?m=1#random" target="_blank" rel="noopener noreferrer">
+        🔗 いらすとやで ひらく
+      </a>
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <p>イラスト：<a href="https://www.irasutoya.com/" target="_blank" rel="noopener noreferrer">いらすとや</a> さんより</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
