@@ -3,74 +3,81 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>なんのえかな？クイズ</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<title>static-pages</title>
+<meta name="description" content="CDNだけで動く静的ページ置き場。CSSフレームワーク比較デモ集への入口。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%84%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 20px 72px; }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 8px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 40px; }
+  h2 { font-size: 1.05rem; margin: 40px 0 4px; }
+  h2 + p { color: var(--muted); font-size: .88rem; margin: 0 0 16px; }
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  ul.two { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  a.row {
+    display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; transition: border-color .15s ease, transform .15s ease;
+  }
+  a.row:hover { border-color: var(--accent); transform: translateX(3px); }
+  a.row .icon { font-size: 1.3rem; line-height: 1; }
+  a.row .name { font-weight: 600; }
+  a.row .desc { color: var(--muted); font-size: .82rem; display: block; font-weight: 400; }
+  a.row .arrow { margin-left: auto; color: var(--muted); }
+  a.row.primary { background: var(--panel-2); border-color: var(--accent); }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+  footer a { color: var(--muted); }
+</style>
 </head>
 <body>
-  <div class="clouds" aria-hidden="true">
-    <span class="cloud c1">☁️</span>
-    <span class="cloud c2">☁️</span>
-    <span class="cloud c3">☁️</span>
-  </div>
+<div class="wrap">
 
-  <header class="page-header">
-    <h1><span class="wobble">🎨</span> なんの えかな？ クイズ <span class="wobble">🐣</span></h1>
-    <p class="subtitle">いらすとや の えが とうじょう！ よくみて あててみよう！</p>
-  </header>
+  <h1>static-pages</h1>
+  <p class="lead">CDNだけで動く静的ページ置き場です。</p>
 
-  <main class="quiz-card">
-    <div class="frame-wrap">
-      <div id="loading" class="loading">
-        <div class="spinner" aria-hidden="true"></div>
-        <p>えを よみこみ中… ⏳</p>
-      </div>
-
-      <div id="frameBox" class="frame-box">
-        <iframe
-          id="quizFrame"
-          title="いらすとやの ランダムな え"
-          loading="lazy"
-          referrerpolicy="no-referrer"
-        ></iframe>
-        <div id="overlay" class="overlay">
-          <div class="overlay-inner">
-            <div class="big-mark">？</div>
-            <p>なにの えが かくれてるかな？</p>
-          </div>
-        </div>
-      </div>
-
-      <div id="fallback" class="fallback" hidden>
-        <p>あれれ？ この ブラウザでは えが うまく みられないみたい…</p>
-        <p>したの ボタンから ちょくせつ みてみよう！</p>
-      </div>
-    </div>
-
-    <div id="answerBanner" class="answer-banner" role="status" aria-live="polite" hidden>
-      🎉 こたえは これだ！ 🎉
-    </div>
-
-    <div class="button-row">
-      <button id="answerBtn" class="btn btn-answer" type="button" disabled>
-        👀 こたえを みる！
-      </button>
-      <button id="nextBtn" class="btn btn-next" type="button">
-        🔄 つぎの もんだい
-      </button>
-    </div>
-
-    <div class="button-row secondary-row">
-      <a id="openDirect" class="btn btn-outline" href="https://www.irasutoya.com/2014/03/blog-post_869.html?m=1#random" target="_blank" rel="noopener noreferrer">
-        🔗 いらすとやで ひらく
+  <h2>CSSフレームワーク比較デモ集</h2>
+  <p>主要なCSSフレームワーク10種を、同じ題材（架空SaaS「Aurora Notes」のLP）で1ページずつ実装しています。</p>
+  <ul>
+    <li>
+      <a class="row primary" href="css-frameworks/index.html">
+        <span class="icon">🧪</span>
+        <span><span class="name">比較トップ</span><span class="desc">一覧比較表・選び方のめやす</span></span>
+        <span class="arrow">→</span>
       </a>
-    </div>
-  </main>
+    </li>
+  </ul>
 
-  <footer class="page-footer">
-    <p>イラスト：<a href="https://www.irasutoya.com/" target="_blank" rel="noopener noreferrer">いらすとや</a> さんより</p>
+  <h2>各フレームワークのデモ</h2>
+  <p>それぞれの「らしさ」が出る機能を使って実装しています。</p>
+  <ul class="two">
+    <li><a class="row" href="css-frameworks/bootstrap.html"><span class="icon">🅱️</span><span><span class="name">Bootstrap 5</span><span class="desc">コンポーネント総合デパート</span></span></a></li>
+    <li><a class="row" href="css-frameworks/tailwind.html"><span class="icon">🌬️</span><span><span class="name">Tailwind CSS</span><span class="desc">ユーティリティファースト</span></span></a></li>
+    <li><a class="row" href="css-frameworks/bulma.html"><span class="icon">💎</span><span><span class="name">Bulma</span><span class="desc">JavaScript完全ゼロ</span></span></a></li>
+    <li><a class="row" href="css-frameworks/foundation.html"><span class="icon">🏛️</span><span><span class="name">Foundation</span><span class="desc">XY Grid とフォーム検証</span></span></a></li>
+    <li><a class="row" href="css-frameworks/uikit.html"><span class="icon">⚡</span><span><span class="name">UIkit</span><span class="desc">属性だけで動く</span></span></a></li>
+    <li><a class="row" href="css-frameworks/materialize.html"><span class="icon">🎨</span><span><span class="name">Materialize</span><span class="desc">マテリアルデザイン</span></span></a></li>
+    <li><a class="row" href="css-frameworks/fomantic-ui.html"><span class="icon">📚</span><span><span class="name">Fomantic UI</span><span class="desc">英語の文章のようなクラス名</span></span></a></li>
+    <li><a class="row" href="css-frameworks/pico.html"><span class="icon">🥧</span><span><span class="name">Pico.css</span><span class="desc">クラスレス</span></span></a></li>
+    <li><a class="row" href="css-frameworks/spectre.html"><span class="icon">🪶</span><span><span class="name">Spectre.css</span><span class="desc">9KBの小さな道具箱</span></span></a></li>
+    <li><a class="row" href="css-frameworks/open-props.html"><span class="icon">🧬</span><span><span class="name">Open Props</span><span class="desc">CSS変数（デザイントークン）</span></span></a></li>
+  </ul>
+
+  <footer>
+    Aurora Notes は比較用の架空サービスです。各フレームワークのロゴ・商標はそれぞれの権利者に帰属します。
   </footer>
 
-  <script src="script.js"></script>
+</div>
 </body>
 </html>

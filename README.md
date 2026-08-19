@@ -6,8 +6,8 @@ CDNだけで動く静的ページ置き場です。
 
 | ページ | 内容 |
 | --- | --- |
-| [index.html](index.html) | 「なんのえかな？クイズ」（いらすとや のランダム画像クイズ） |
-| [css-frameworks/index.html](css-frameworks/index.html) | CSSフレームワーク比較デモ集（10種） |
+| [index.html](index.html) | トップ（各ページへのリンク集） |
+| [css-frameworks/index.html](css-frameworks/index.html) | CSSフレームワーク比較デモ集（10種）の比較表・選び方 |
 
 ## CSSフレームワーク比較デモ集
 
