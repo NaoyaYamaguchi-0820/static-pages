@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foundation デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
+<!-- CDN: CSS本体。JSはjQueryが"必須" -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/css/foundation.min.css" crossorigin="anonymous">
+<style>
+  /* Foundationは装飾が控えめなので、比較ページとして最低限の色だけ足しています */
+  .hero-band { background: linear-gradient(135deg, #1779ba 0%, #0f5f94 60%, #12354d 100%); color: #fff; padding: 4rem 0; }
+  .hero-band h1 { color: #fff; }
+  .price-featured { border-top: 4px solid #1779ba; }
+  .stat { font-size: 2.2rem; font-weight: 700; color: #1779ba; line-height: 1.1; }
+  /* 余白ユーティリティ（margin-top-1 等）は Foundation では
+     "prototyping utilities" ビルド（foundation-prototype.css）にのみ含まれるため、
+     通常ビルドを使うこのページでは同名のクラスを自前で定義しています。 */
+  .margin-top-1 { margin-top: 1rem !important; }
+  .margin-top-2 { margin-top: 2rem !important; }
+  .margin-top-3 { margin-top: 3rem !important; }
+  .margin-bottom-0 { margin-bottom: 0 !important; }
+  .margin-bottom-3 { margin-bottom: 3rem !important; }
+</style>
+</head>
+<body>
+
+<!-- ▼ top-bar：data-responsive-toggle でモバイル時のみメニューを畳む -->
+<div class="title-bar" data-responsive-toggle="mainMenu" data-hide-for="medium">
+  <button class="menu-icon" type="button" data-toggle="mainMenu"></button>
+  <div class="title-bar-title">Aurora Notes</div>
+</div>
+
+<div class="top-bar" id="mainMenu">
+  <div class="top-bar-left">
+    <ul class="dropdown menu" data-dropdown-menu>
+      <li class="menu-text">🏛️ Aurora Notes</li>
+      <li><a href="#features">機能</a></li>
+      <li><a href="#pricing">料金</a></li>
+      <li>
+        <a href="#">リソース</a>
+        <ul class="menu vertical">
+          <li><a href="#faq">よくある質問</a></li>
+          <li><a href="#contact">お問い合わせ</a></li>
+          <li><a href="index.html">比較トップへ戻る</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="top-bar-right">
+    <ul class="menu">
+      <li><button class="button hollow small" data-open="trialModal">無料トライアル</button></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ▼ ヒーロー -->
+<header class="hero-band">
+  <div class="grid-container">
+    <div class="grid-x grid-margin-x align-middle">
+      <div class="cell medium-7">
+        <span class="label secondary">Foundation for Sites 6.9.0</span>
+        <h1 class="margin-top-1">思考が途切れない、<br>チームのためのノート</h1>
+        <p class="lead">
+          議事録・仕様・ナレッジをひとつに。このページは <strong>XY Grid</strong> と
+          Foundation標準コンポーネントのみで組んでいます。
+        </p>
+        <div class="button-group">
+          <button class="button large" data-open="trialModal">無料で試す</button>
+          <a class="button large hollow" href="#pricing" style="color:#fff;border-color:#fff">料金を見る</a>
+        </div>
+      </div>
+      <div class="cell medium-5">
+        <div class="callout" style="color:#0a0a0a">
+          <h5>今週の更新</h5>
+          <ul class="no-bullet">
+            <li>設計レビュー議事録 <span class="badge primary">12</span></li>
+            <li>リリースノート <span class="badge success">4</span></li>
+            <li>オンボーディング資料 <span class="badge secondary">1</span></li>
+          </ul>
+          <div class="progress" role="progressbar" tabindex="0" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-meter" style="width:78%"><p class="progress-meter-text">78%</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="grid-container" style="padding-top:3rem">
+
+  <!-- ▼ 機能：XY Grid（grid-x / cell / medium-4） -->
+  <section id="features">
+    <h2>主な機能</h2>
+    <p class="help-text">XY Grid は <code>grid-x</code> の中に <code>cell</code> を置き、<code>small-12 medium-4</code> のようにブレークポイントごとの幅を指定します。</p>
+    <div class="grid-x grid-margin-x">
+      <div class="cell small-12 medium-4">
+        <div class="card">
+          <div class="card-divider"><h5 class="margin-bottom-0">⚡ 高速な全文検索</h5></div>
+          <div class="card-section">
+            <p>数万件のドキュメントでも100ms以内に候補を表示します。</p>
+            <span class="label primary">検索</span> <span class="label secondary">インデックス</span>
+          </div>
+        </div>
+      </div>
+      <div class="cell small-12 medium-4">
+        <div class="card">
+          <div class="card-divider"><h5 class="margin-bottom-0">👥 同時編集</h5></div>
+          <div class="card-section">
+            <p>最大50人が同じページを同時に編集しても競合しません。</p>
+            <span class="label success">共同編集</span> <span class="label secondary">履歴</span>
+          </div>
+        </div>
+      </div>
+      <div class="cell small-12 medium-4">
+        <div class="card">
+          <div class="card-divider"><h5 class="margin-bottom-0">🔐 権限管理</h5></div>
+          <div class="card-section">
+            <p>部署・役職単位で閲覧範囲を細かく制御できます。</p>
+            <span class="label warning">SSO</span> <span class="label secondary">監査ログ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 実績：レスポンシブ表示制御クラスのデモも兼ねる -->
+    <div class="grid-x grid-margin-x text-center margin-top-2">
+      <div class="cell small-6 medium-3"><p class="stat">1,200</p><p class="help-text">導入企業</p></div>
+      <div class="cell small-6 medium-3"><p class="stat">84万</p><p class="help-text">月間作成ページ</p></div>
+      <div class="cell small-6 medium-3"><p class="stat">92ms</p><p class="help-text">平均検索速度</p></div>
+      <div class="cell small-6 medium-3"><p class="stat">98%</p><p class="help-text">継続率</p></div>
+    </div>
+    <div class="callout secondary small">
+      <p class="help-text margin-bottom-0">
+        <span class="show-for-small-only">📱 いまは <strong>small</strong> 表示です（<code>show-for-small-only</code>）</span>
+        <span class="show-for-medium hide-for-large">💻 いまは <strong>medium</strong> 表示です（<code>show-for-medium</code>）</span>
+        <span class="show-for-large">🖥️ いまは <strong>large</strong> 表示です（<code>show-for-large</code>）</span>
+        ── ウィンドウ幅を変えると表示が切り替わります。
+      </p>
+    </div>
+  </section>
+
+  <!-- ▼ 料金 -->
+  <section id="pricing" class="margin-top-3">
+    <h2>料金プラン</h2>
+    <div class="grid-x grid-margin-x">
+      <div class="cell small-12 medium-4">
+        <div class="card text-center">
+          <div class="card-section">
+            <h5>Free</h5><p class="stat">¥0</p><p class="help-text">/ ユーザー / 月</p>
+            <ul class="no-bullet text-left"><li>✅ 3名まで</li><li>✅ 1GB</li><li>❌ 権限管理</li></ul>
+            <button class="button hollow expanded">今すぐ始める</button>
+          </div>
+        </div>
+      </div>
+      <div class="cell small-12 medium-4">
+        <div class="card text-center price-featured">
+          <div class="card-section">
+            <h5>Team <span class="label primary">おすすめ</span></h5><p class="stat">¥1,200</p><p class="help-text">/ ユーザー / 月</p>
+            <ul class="no-bullet text-left"><li>✅ 人数無制限</li><li>✅ 100GB</li><li>✅ 権限管理</li></ul>
+            <button class="button expanded" data-open="trialModal">14日間の無料トライアル</button>
+          </div>
+        </div>
+      </div>
+      <div class="cell small-12 medium-4">
+        <div class="card text-center">
+          <div class="card-section">
+            <h5>Enterprise</h5><p class="stat">応相談</p><p class="help-text">年間契約</p>
+            <ul class="no-bullet text-left"><li>✅ SAML / SCIM</li><li>✅ 監査ログ</li><li>✅ 専任サポート</li></ul>
+            <button class="button hollow expanded">問い合わせる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ▼ アコーディオン（data-accordion）＋ Abideバリデーション -->
+  <section class="grid-x grid-margin-x margin-top-3">
+    <div class="cell medium-6" id="faq">
+      <h2>よくある質問</h2>
+      <ul class="accordion" data-accordion data-allow-all-closed="true">
+        <li class="accordion-item is-active" data-accordion-item>
+          <a href="#" class="accordion-title">既存のドキュメントを移行できますか？</a>
+          <div class="accordion-content" data-tab-content>
+            <p>Markdown / Word / Confluence からの一括インポートに対応しています。</p>
+          </div>
+        </li>
+        <li class="accordion-item" data-accordion-item>
+          <a href="#" class="accordion-title">オフラインでも使えますか？</a>
+          <div class="accordion-content" data-tab-content>
+            <p>デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p>
+          </div>
+        </li>
+        <li class="accordion-item" data-accordion-item>
+          <a href="#" class="accordion-title">データはどこに保存されますか？</a>
+          <div class="accordion-content" data-tab-content>
+            <p>東京リージョンに保存され、日次でバックアップされます。</p>
+          </div>
+        </li>
+      </ul>
+      <div class="callout primary margin-top-2">
+        <p class="help-text margin-bottom-0">
+          <strong>Foundationらしさ：</strong> 挙動は <code>data-accordion</code> のような属性で宣言し、
+          最後に <code>$(document).foundation()</code> を1回呼ぶだけで有効化されます。
+        </p>
+      </div>
+    </div>
+
+    <div class="cell medium-6" id="contact">
+      <h2>お問い合わせ</h2>
+      <p class="help-text">Foundation独自の <strong>Abide</strong> によるフォームバリデーションです。空のまま送信すると検証が働きます。</p>
+      <form data-abide novalidate>
+        <div data-abide-error class="alert callout" style="display:none">
+          <p><i class="fi-alert"></i> 入力内容にエラーがあります。赤い項目を確認してください。</p>
+        </div>
+        <label>お名前 <span class="label alert">必須</span>
+          <input type="text" placeholder="山田 太郎" required>
+          <span class="form-error">お名前を入力してください。</span>
+        </label>
+        <label>メールアドレス <span class="label alert">必須</span>
+          <input type="email" placeholder="work@example.com" required pattern="email">
+          <span class="form-error">正しいメールアドレスを入力してください。</span>
+        </label>
+        <label>検討中のプラン
+          <select><option>Free</option><option selected>Team</option><option>Enterprise</option></select>
+        </label>
+        <label>ご相談内容
+          <textarea placeholder="導入検討中です…" rows="4"></textarea>
+        </label>
+        <div class="switch">
+          <input class="switch-input" id="newsletter" type="checkbox">
+          <label class="switch-paddle" for="newsletter"><span class="show-for-sr">お知らせを受け取る</span></label>
+        </div>
+        <p class="help-text" style="margin-top:-.5rem">お知らせメールを受け取る</p>
+        <fieldset>
+          <input id="agree" type="checkbox" required>
+          <label for="agree">利用規約に同意します</label>
+          <span class="form-error">同意が必要です。</span>
+        </fieldset>
+        <button class="button" type="submit">送信する</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ▼ 特徴まとめ -->
+  <section class="margin-top-3">
+    <h2>Foundation の特徴</h2>
+    <div class="grid-x grid-margin-x">
+      <div class="cell medium-6">
+        <div class="callout success">
+          <h5>👍 長所</h5>
+          <ul>
+            <li><strong>XY Grid</strong> が強力。縦横どちらの分割にも同じ書き方で対応できる</li>
+            <li>Abide（フォーム検証）、Interchange（レスポンシブ画像・コンテンツ差し替え）など<strong>他にはない実務機能</strong></li>
+            <li>アクセシビリティ対応が丁寧で、公的機関・大規模サイトでの採用実績が多い</li>
+            <li>装飾が控えめなので、独自デザインを載せても浮きにくい</li>
+            <li>姉妹版の Foundation for Emails でHTMLメールも作れる</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cell medium-6">
+        <div class="callout warning">
+          <h5>⚠️ 短所・注意点</h5>
+          <ul>
+            <li><strong>jQueryが必須</strong>。モダンな構成では負債になりやすい</li>
+            <li>開発の勢いは Bootstrap / Tailwind に比べて落ち着いている</li>
+            <li>日本語の情報が少なく、公式ドキュメント頼りになりがち</li>
+            <li>カスタマイズは Sass 前提の設計で、CDNのみだと調整余地が狭い</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <h5>向いているケース</h5>
+      <p>大規模コーポレートサイト、アクセシビリティ要件が明確な案件、HTMLメール制作。すでにjQueryが入っている既存システムの刷新とも相性が良好です。</p>
+      <h5>CDNの書き方</h5>
+      <pre><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/css/foundation.min.css"&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/js/foundation.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;$(document).foundation();&lt;/script&gt;</code></pre>
+    </div>
+  </section>
+
+  <!-- ▼ 他フレームワーク -->
+  <section class="margin-top-3 margin-bottom-3">
+    <h5>他のフレームワークで見る</h5>
+    <div class="button-group small">
+      <a class="button secondary" href="index.html">比較トップ</a>
+      <a class="button secondary" href="bootstrap.html">Bootstrap</a>
+      <a class="button secondary" href="tailwind.html">Tailwind</a>
+      <a class="button secondary" href="bulma.html">Bulma</a>
+      <a class="button secondary" href="uikit.html">UIkit</a>
+      <a class="button secondary" href="materialize.html">Materialize</a>
+      <a class="button secondary" href="fomantic-ui.html">Fomantic UI</a>
+      <a class="button secondary" href="pico.html">Pico.css</a>
+      <a class="button secondary" href="spectre.html">Spectre.css</a>
+      <a class="button secondary" href="open-props.html">Open Props</a>
+    </div>
+  </section>
+</div>
+
+<!-- ▼ Reveal（モーダル） -->
+<div class="reveal" id="trialModal" data-reveal>
+  <h3>無料トライアル</h3>
+  <p class="lead">クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+  <label>メールアドレス <input type="email" placeholder="work@example.com"></label>
+  <button class="button" data-close>開始する</button>
+  <button class="close-button" data-close aria-label="閉じる" type="button"><span aria-hidden="true">&times;</span></button>
+</div>
+
+<footer style="background:#12354d;color:#cfe3f1;padding:1.5rem 0;margin-top:2rem">
+  <div class="grid-container"><p class="help-text" style="color:#cfe3f1;margin:0">Aurora Notes は比較用の架空サービスです。 / Built with Foundation for Sites 6.9.0</p></div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/js/foundation.min.js" crossorigin="anonymous"></script>
+<script>
+  // Foundationの初期化はこの1行。data-*属性の付いた要素がまとめて有効化される
+  $(document).foundation();
+</script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fomantic UI デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E">
+<!-- CDN: 全部入りCSS（gzip後でも約181KBと最大級）+ jQuery必須 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.css" crossorigin="anonymous">
+<style>
+  .hero { background: linear-gradient(135deg,#00b5ad 0%,#009c95 50%,#00514d 100%); padding: 5em 0 6em; }
+  body { padding-top: 4em; }
+</style>
+</head>
+<body>
+
+<!-- ▼ ナビ：クラス名が英語の文章のように読める（ui fixed inverted menu） -->
+<div class="ui fixed inverted teal menu">
+  <div class="ui container">
+    <a href="#" class="header item"><i class="book icon"></i> Aurora Notes</a>
+    <a href="#features" class="item">機能</a>
+    <a href="#pricing" class="item">料金</a>
+    <div class="ui simple dropdown item">
+      リソース <i class="dropdown icon"></i>
+      <div class="menu">
+        <a class="item" href="#faq">よくある質問</a>
+        <a class="item" href="#contact">お問い合わせ</a>
+        <div class="divider"></div>
+        <a class="item" href="index.html">比較トップへ戻る</a>
+      </div>
+    </div>
+    <div class="right item">
+      <button class="ui inverted button" id="openModal">無料で試す</button>
+    </div>
+  </div>
+</div>
+
+<!-- ▼ ヒーロー -->
+<div class="hero ui inverted vertical segment">
+  <div class="ui container">
+    <div class="ui stackable grid">
+      <div class="ten wide column">
+        <div class="ui yellow label">Fomantic UI 2.9.4</div>
+        <h1 class="ui inverted header" style="font-size:3em;margin-top:.5em">
+          思考が途切れない、<br>チームのためのノート
+          <div class="sub header" style="margin-top:.6em;font-size:.4em;line-height:1.6">
+            議事録・仕様・ナレッジをひとつに。<br>
+            <code>ui three column stackable grid</code> のような<strong>自然言語に近いクラス名</strong>が最大の特徴です。
+          </div>
+        </h1>
+        <button class="ui huge inverted button" id="openModal2">無料で試す <i class="right arrow icon"></i></button>
+        <a class="ui huge inverted basic button" href="#pricing">料金を見る</a>
+      </div>
+      <div class="six wide column">
+        <div class="ui raised segment">
+          <h4 class="ui header">今週の更新</h4>
+          <div class="ui relaxed divided list">
+            <div class="item"><i class="large file alternate outline middle aligned icon"></i>
+              <div class="content"><a class="header">設計レビュー議事録</a><div class="description">12件の更新</div></div>
+            </div>
+            <div class="item"><i class="large tag middle aligned icon"></i>
+              <div class="content"><a class="header">リリースノート</a><div class="description">4件の更新</div></div>
+            </div>
+            <div class="item"><i class="large graduation cap middle aligned icon"></i>
+              <div class="content"><a class="header">オンボーディング資料</a><div class="description">1件の更新</div></div>
+            </div>
+          </div>
+          <div class="ui teal progress" data-percent="78" id="prog">
+            <div class="bar" style="width:78%"><div class="progress">78%</div></div>
+            <div class="label">導入企業の定着率</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ui vertical segment" style="padding:4em 0">
+  <div class="ui container">
+
+    <!-- ▼ 機能：ui three column stackable grid -->
+    <div id="features">
+      <h2 class="ui horizontal divider header"><i class="star icon"></i>主な機能</h2>
+      <div class="ui three column stackable grid">
+        <div class="column">
+          <div class="ui fluid raised card">
+            <div class="content">
+              <i class="big bolt teal icon right floated"></i>
+              <div class="header">高速な全文検索</div>
+              <div class="meta">Search</div>
+              <div class="description">数万件のドキュメントでも100ms以内に候補を表示します。</div>
+            </div>
+            <div class="extra content"><span class="ui teal label">検索</span><span class="ui label">インデックス</span></div>
+          </div>
+        </div>
+        <div class="column">
+          <div class="ui fluid raised card">
+            <div class="content">
+              <i class="big users teal icon right floated"></i>
+              <div class="header">同時編集</div>
+              <div class="meta">Collaboration</div>
+              <div class="description">最大50人が同じページを同時に編集しても競合しません。</div>
+            </div>
+            <div class="extra content"><span class="ui teal label">共同編集</span><span class="ui label">履歴</span></div>
+          </div>
+        </div>
+        <div class="column">
+          <div class="ui fluid raised card">
+            <div class="content">
+              <i class="big lock teal icon right floated"></i>
+              <div class="header">権限管理</div>
+              <div class="meta">Security</div>
+              <div class="description">部署・役職単位で閲覧範囲を細かく制御できます。</div>
+            </div>
+            <div class="extra content"><span class="ui teal label">SSO</span><span class="ui label">監査ログ</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- statistics：他フレームワークにはあまり無いコンポーネント -->
+      <div class="ui four statistics" style="margin-top:3em">
+        <div class="statistic"><div class="value">1,200</div><div class="label">導入企業</div></div>
+        <div class="statistic"><div class="value">84万</div><div class="label">月間作成ページ</div></div>
+        <div class="statistic"><div class="value">92ms</div><div class="label">平均検索速度</div></div>
+        <div class="statistic"><div class="value">98%</div><div class="label">継続率</div></div>
+      </div>
+
+      <!-- steps：導入フローの表現もコンポーネントとして用意されている -->
+      <div class="ui three ordered steps" style="margin-top:3em;width:100%">
+        <div class="completed step"><div class="content"><div class="title">アカウント作成</div><div class="description">1分で完了</div></div></div>
+        <div class="completed step"><div class="content"><div class="title">インポート</div><div class="description">既存の資料を移行</div></div></div>
+        <div class="active step"><div class="content"><div class="title">運用開始</div><div class="description">メンバーを招待</div></div></div>
+      </div>
+    </div>
+
+    <!-- ▼ 料金 -->
+    <div id="pricing" style="margin-top:4em">
+      <h2 class="ui horizontal divider header"><i class="credit card icon"></i>料金プラン</h2>
+      <div class="ui three stackable cards">
+        <div class="ui card">
+          <div class="content center aligned"><div class="header">Free</div></div>
+          <div class="content center aligned">
+            <div class="ui statistic"><div class="value">¥0</div><div class="label">/ ユーザー / 月</div></div>
+            <div class="ui bulleted list left aligned" style="margin-top:1em">
+              <div class="item">3名まで</div><div class="item">1GBストレージ</div><div class="item disabled">権限管理</div>
+            </div>
+          </div>
+          <div class="ui bottom attached basic teal button">今すぐ始める</div>
+        </div>
+        <div class="ui raised card">
+          <div class="ui teal ribbon label" style="margin-top:1em">おすすめ</div>
+          <div class="content center aligned"><div class="header">Team</div></div>
+          <div class="content center aligned">
+            <div class="ui statistic"><div class="value">¥1,200</div><div class="label">/ ユーザー / 月</div></div>
+            <div class="ui bulleted list left aligned" style="margin-top:1em">
+              <div class="item">人数無制限</div><div class="item">100GBストレージ</div><div class="item">権限管理</div>
+            </div>
+          </div>
+          <div class="ui bottom attached teal button" id="openModal3">14日間の無料トライアル</div>
+        </div>
+        <div class="ui card">
+          <div class="content center aligned"><div class="header">Enterprise</div></div>
+          <div class="content center aligned">
+            <div class="ui statistic"><div class="value">応相談</div><div class="label">年間契約</div></div>
+            <div class="ui bulleted list left aligned" style="margin-top:1em">
+              <div class="item">SAML / SCIM</div><div class="item">監査ログ</div><div class="item">専任サポート</div>
+            </div>
+          </div>
+          <div class="ui bottom attached basic teal button">問い合わせる</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▼ FAQ（accordion）＋ フォーム -->
+    <div class="ui stackable two column grid" style="margin-top:4em">
+      <div class="column" id="faq">
+        <h2 class="ui header"><i class="question circle outline icon"></i>
+          <div class="content">よくある質問</div>
+        </h2>
+        <div class="ui styled fluid accordion">
+          <div class="active title"><i class="dropdown icon"></i>既存のドキュメントを移行できますか？</div>
+          <div class="active content"><p>Markdown / Word / Confluence からの一括インポートに対応しています。</p></div>
+          <div class="title"><i class="dropdown icon"></i>オフラインでも使えますか？</div>
+          <div class="content"><p>デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p></div>
+          <div class="title"><i class="dropdown icon"></i>データはどこに保存されますか？</div>
+          <div class="content"><p>東京リージョンに保存され、日次でバックアップされます。</p></div>
+        </div>
+        <div class="ui info message" style="margin-top:1.5em">
+          <div class="header">Fomantic UIらしさ</div>
+          <p><code>ui styled fluid accordion</code> のように、クラスを英語の修飾語として重ねていきます。
+          初期化は <code>$('.ui.accordion').accordion()</code> のjQueryプラグイン形式です。</p>
+        </div>
+      </div>
+
+      <div class="column" id="contact">
+        <h2 class="ui header"><i class="envelope outline icon"></i>
+          <div class="content">お問い合わせ</div>
+        </h2>
+        <form class="ui form segment">
+          <div class="field">
+            <label>お名前</label>
+            <div class="ui left icon input"><i class="user icon"></i><input type="text" placeholder="山田 太郎"></div>
+          </div>
+          <div class="field">
+            <label>メールアドレス</label>
+            <div class="ui left icon input"><i class="mail icon"></i><input type="email" placeholder="work@example.com"></div>
+          </div>
+          <div class="field">
+            <label>検討中のプラン</label>
+            <select class="ui dropdown"><option value="1">Free</option><option value="2" selected>Team</option><option value="3">Enterprise</option></select>
+          </div>
+          <div class="field">
+            <label>ご相談内容</label>
+            <textarea rows="4" placeholder="導入検討中です…"></textarea>
+          </div>
+          <div class="inline field">
+            <div class="ui toggle checkbox"><input type="checkbox" checked><label>お知らせを受け取る</label></div>
+          </div>
+          <div class="field">
+            <div class="ui checkbox"><input type="checkbox"><label>利用規約に同意します</label></div>
+          </div>
+          <button class="ui teal submit button" type="button" id="sendBtn">送信する</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ▼ 特徴まとめ -->
+    <div style="margin-top:4em">
+      <h2 class="ui horizontal divider header"><i class="info circle icon"></i>Fomantic UI の特徴</h2>
+      <div class="ui two column stackable grid">
+        <div class="column">
+          <div class="ui positive message">
+            <div class="header">👍 長所</div>
+            <ul class="list">
+              <li><strong>クラス名が英語の文章として読める</strong>（<code>ui three column stackable grid</code>）</li>
+              <li>コンポーネント数が最多クラス。statistic / step / ribbon / feed など他には無い部品も揃う</li>
+              <li>フォーム検証・カレンダー・検索候補など、アプリ寄りの機能が標準装備</li>
+              <li>テーマ機能が強力で、変数を差し替えるだけで全体の印象を変えられる</li>
+              <li>Semantic UI（開発停滞）のコミュニティ後継として現在も更新が続いている</li>
+            </ul>
+          </div>
+        </div>
+        <div class="column">
+          <div class="ui warning message">
+            <div class="header">⚠️ 短所・注意点</div>
+            <ul class="list">
+              <li><strong>とにかく重い</strong>。全部入りCSSは gzip後で約181KB、JSも約105KB</li>
+              <li><strong>jQueryが必須</strong>。React / Vue との組み合わせは相性が悪い</li>
+              <li>必要なコンポーネントだけ読み込む構成にするにはビルド設定が要る</li>
+              <li>クラスの語順・組み合わせに独自ルールがあり、慣れるまで戸惑いやすい</li>
+              <li>日本語情報は Semantic UI 時代のものが多く、最新版と食い違うことがある</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="ui segment">
+        <h4 class="ui header">向いているケース</h4>
+        <p>社内向け管理画面やダッシュボードなど、<strong>コンポーネントの多さがそのまま開発速度になる</strong>場面。ページ表示速度より機能網羅性が優先される用途に向きます。</p>
+        <h4 class="ui header">CDNの書き方</h4>
+        <pre style="overflow-x:auto"><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.css"&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.js"&gt;&lt;/script&gt;</code></pre>
+      </div>
+    </div>
+
+    <!-- ▼ 他フレームワーク -->
+    <div style="margin-top:3em">
+      <h4 class="ui header">他のフレームワークで見る</h4>
+      <div class="ui small basic buttons" style="flex-wrap:wrap">
+        <a class="ui button" href="index.html">比較トップ</a>
+        <a class="ui button" href="bootstrap.html">Bootstrap</a>
+        <a class="ui button" href="tailwind.html">Tailwind</a>
+        <a class="ui button" href="bulma.html">Bulma</a>
+        <a class="ui button" href="foundation.html">Foundation</a>
+        <a class="ui button" href="uikit.html">UIkit</a>
+        <a class="ui button" href="materialize.html">Materialize</a>
+        <a class="ui button" href="pico.html">Pico.css</a>
+        <a class="ui button" href="spectre.html">Spectre.css</a>
+        <a class="ui button" href="open-props.html">Open Props</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="ui inverted vertical footer segment" style="padding:3em 0">
+  <div class="ui container">
+    <p>Aurora Notes は比較用の架空サービスです。 / Built with Fomantic UI 2.9.4</p>
+  </div>
+</div>
+
+<!-- ▼ モーダル -->
+<div class="ui modal" id="trialModal">
+  <i class="close icon"></i>
+  <div class="header">無料トライアル</div>
+  <div class="content">
+    <p>クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+    <div class="ui fluid left icon input"><i class="mail icon"></i><input type="email" placeholder="work@example.com"></div>
+  </div>
+  <div class="actions">
+    <div class="ui cancel button">閉じる</div>
+    <div class="ui teal approve button">開始する</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.js" crossorigin="anonymous"></script>
+<script>
+  // Fomantic UI はコンポーネントごとに jQuery プラグインとして初期化する
+  $(function () {
+    $('.ui.accordion').accordion();
+    $('.ui.checkbox').checkbox();
+    $('.ui.dropdown').dropdown();
+    $('.ui.progress').progress();
+    $('#openModal, #openModal2, #openModal3').on('click', function () {
+      $('#trialModal').modal('show');
+    });
+    $('#sendBtn').on('click', function () {
+      $('body').toast({ class: 'success', message: '送信しました（デモ）', position: 'bottom right' });
+    });
+  });
+</script>
+</body>
+</html>

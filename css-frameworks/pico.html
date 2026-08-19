@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pico.css デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%A7%3C/text%3E%3C/svg%3E">
+<!-- CDN: これ1行だけ。以下のHTMLには class 属性がほとんど登場しません -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css" crossorigin="anonymous">
+</head>
+<body>
+
+<!-- ▼ ナビ：nav > ul > li だけでナビゲーションになる。クラス指定なし -->
+<header class="container">
+  <nav>
+    <ul><li><strong>🥧 Aurora Notes</strong></li></ul>
+    <ul>
+      <li><a href="#features">機能</a></li>
+      <li><a href="#pricing">料金</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li>
+        <details class="dropdown">
+          <summary role="button" class="secondary">テーマ</summary>
+          <ul>
+            <li><a href="#" data-set-theme="light">☀️ ライト</a></li>
+            <li><a href="#" data-set-theme="dark">🌙 ダーク</a></li>
+          </ul>
+        </details>
+      </li>
+      <li><a href="#trial" role="button" onclick="event.preventDefault();document.getElementById('trial').showModal()">無料で試す</a></li>
+    </ul>
+  </nav>
+
+  <!-- ▼ ヒーロー：hgroup と p だけ -->
+  <hgroup>
+    <h1>思考が途切れない、チームのためのノート</h1>
+    <p>議事録・仕様・ナレッジをひとつに。<strong>このページのHTMLにはクラス指定がほとんどありません。</strong>
+       素のタグを書くだけで、この見た目になります。</p>
+  </hgroup>
+  <p>
+    <a href="#pricing" role="button">料金を見る</a>
+    <a href="#contact" role="button" class="secondary outline">相談する</a>
+  </p>
+  <p><small>Pico.css 2.1.1 ／ CSS 1本（gzip後 約11KB）／ JavaScript 不要</small></p>
+</header>
+
+<main class="container">
+
+  <!-- ▼ 機能：Picoが唯一提供するレイアウト用クラス .grid のみ使用 -->
+  <section id="features">
+    <h2>主な機能</h2>
+    <p>レイアウト用の <code>.grid</code> だけがPicoの数少ないクラスです。中身は <code>article</code> タグ。</p>
+    <div class="grid">
+      <article>
+        <header><strong>⚡ 高速な全文検索</strong></header>
+        <p>数万件のドキュメントでも100ms以内に候補を表示します。</p>
+        <footer><small>検索 / インデックス</small></footer>
+      </article>
+      <article>
+        <header><strong>👥 同時編集</strong></header>
+        <p>最大50人が同じページを同時に編集しても競合しません。</p>
+        <footer><small>共同編集 / 履歴</small></footer>
+      </article>
+      <article>
+        <header><strong>🔐 権限管理</strong></header>
+        <p>部署・役職単位で閲覧範囲を細かく制御できます。</p>
+        <footer><small>SSO / 監査ログ</small></footer>
+      </article>
+    </div>
+  </section>
+
+  <!-- ▼ 料金：table もそのまま整形される -->
+  <section id="pricing">
+    <h2>料金プラン</h2>
+    <p>素の <code>&lt;table&gt;</code> がそのまま読みやすい表になります。</p>
+    <div class="overflow-auto">
+      <table>
+        <thead>
+          <tr><th scope="col">プラン</th><th scope="col">料金</th><th scope="col">人数</th><th scope="col">容量</th><th scope="col">権限管理</th><th scope="col"></th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Free</th><td>¥0</td><td>3名まで</td><td>1GB</td><td>—</td><td><a href="#" role="button" class="outline secondary">開始</a></td></tr>
+          <tr><th scope="row">Team <mark>おすすめ</mark></th><td>¥1,200 / 人</td><td>無制限</td><td>100GB</td><td>✔</td><td><a href="#" role="button">試す</a></td></tr>
+          <tr><th scope="row">Enterprise</th><td>応相談</td><td>無制限</td><td>無制限</td><td>✔ SAML</td><td><a href="#" role="button" class="outline secondary">相談</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <article>
+      <header><strong>導入の進捗</strong></header>
+      <label>
+        インポート済みドキュメント
+        <progress value="78" max="100"></progress>
+      </label>
+      <p><small>操作は <kbd>Ctrl</kbd> + <kbd>K</kbd> でどこからでも呼び出せます。</small></p>
+    </article>
+  </section>
+
+  <!-- ▼ FAQ：details / summary がそのままアコーディオンになる -->
+  <section id="faq">
+    <h2>よくある質問</h2>
+    <details open>
+      <summary>既存のドキュメントを移行できますか？</summary>
+      <p>Markdown / Word / Confluence からの一括インポートに対応しています。</p>
+    </details>
+    <details>
+      <summary>オフラインでも使えますか？</summary>
+      <p>デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p>
+    </details>
+    <details>
+      <summary>データはどこに保存されますか？</summary>
+      <p>東京リージョンに保存され、日次でバックアップされます。</p>
+    </details>
+  </section>
+
+  <!-- ▼ フォーム：label と input を並べるだけ -->
+  <section id="contact">
+    <h2>お問い合わせ</h2>
+    <form onsubmit="event.preventDefault(); this.querySelector('output').textContent='送信しました（デモ）';">
+      <div class="grid">
+        <label>お名前
+          <input type="text" name="name" placeholder="山田 太郎" required>
+        </label>
+        <label>メールアドレス
+          <input type="email" name="email" placeholder="work@example.com" required>
+          <small>確認メールをお送りします。</small>
+        </label>
+      </div>
+      <label>検討中のプラン
+        <select name="plan">
+          <option>Free</option><option selected>Team</option><option>Enterprise</option>
+        </select>
+      </label>
+      <label>ご相談内容
+        <textarea name="msg" rows="4" placeholder="導入検討中です…"></textarea>
+      </label>
+      <fieldset>
+        <label><input type="checkbox" role="switch" checked> お知らせを受け取る</label>
+        <label><input type="checkbox" required> 利用規約に同意します</label>
+      </fieldset>
+      <button type="submit">送信する</button>
+      <output></output>
+    </form>
+  </section>
+
+  <!-- ▼ 特徴まとめ -->
+  <section>
+    <h2>Pico.css の特徴</h2>
+    <div class="grid">
+      <article>
+        <header><strong>👍 長所</strong></header>
+        <ul>
+          <li><strong>クラス名を覚える必要がない</strong>。HTMLを正しく書くだけで整う</li>
+          <li>gzip後 約11KB と非常に軽い</li>
+          <li>セマンティックなHTMLが自然と身につく（見出し・article・fieldsetを正しく使う動機になる）</li>
+          <li><code>data-theme</code> の切り替えとOS設定への自動追従の両方に対応</li>
+          <li>アクセシビリティ（フォーカス表示・コントラスト）に配慮された既定値</li>
+          <li>「クラスを使いたい場所だけ使う」条件付きビルド（<code>pico.conditional.css</code>）も用意</li>
+        </ul>
+      </article>
+      <article>
+        <header><strong>⚠️ 短所・注意点</strong></header>
+        <ul>
+          <li>複雑なレイアウトは自力で書く必要がある（グリッドは <code>.grid</code> のみ）</li>
+          <li>タブ・モーダル・トーストなどの<strong>コンポーネントがほぼ無い</strong></li>
+          <li>既存サイトに後から入れると、全タグに影響して既存デザインを壊しやすい</li>
+          <li>細かい見た目の調整はCSS変数の上書きで行うため、凝るほど自作CSSが増える</li>
+        </ul>
+      </article>
+    </div>
+    <article>
+      <header><strong>向いているケース</strong></header>
+      <p>ドキュメントサイト、社内ツール、管理画面のプロトタイプ、CMSが吐くHTMLの整形、ハッカソンやMVP。
+         「デザインに時間をかけたくないが、素のHTMLのままでは見せられない」場面に最短で効きます。</p>
+      <footer>
+        <pre><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"&gt;</code></pre>
+        <small>読み込みはこの1行のみ。あとはHTMLを書くだけです。</small>
+      </footer>
+    </article>
+  </section>
+
+  <!-- ▼ 他フレームワーク -->
+  <section>
+    <h3>他のフレームワークで見る</h3>
+    <p>
+      <a href="index.html" role="button" class="outline secondary">比較トップ</a>
+      <a href="bootstrap.html" role="button" class="outline secondary">Bootstrap</a>
+      <a href="tailwind.html" role="button" class="outline secondary">Tailwind</a>
+      <a href="bulma.html" role="button" class="outline secondary">Bulma</a>
+      <a href="foundation.html" role="button" class="outline secondary">Foundation</a>
+      <a href="uikit.html" role="button" class="outline secondary">UIkit</a>
+      <a href="materialize.html" role="button" class="outline secondary">Materialize</a>
+      <a href="fomantic-ui.html" role="button" class="outline secondary">Fomantic UI</a>
+      <a href="spectre.html" role="button" class="outline secondary">Spectre.css</a>
+      <a href="open-props.html" role="button" class="outline secondary">Open Props</a>
+    </p>
+  </section>
+</main>
+
+<footer class="container">
+  <hr>
+  <small>Aurora Notes は比較用の架空サービスです。 / Built with Pico.css 2.1.1</small>
+</footer>
+
+<!-- ▼ モーダル：HTML標準の dialog をPicoがそのまま整形してくれる -->
+<dialog id="trial">
+  <article>
+    <header>
+      <button aria-label="Close" rel="prev" onclick="document.getElementById('trial').close()"></button>
+      <strong>無料トライアル</strong>
+    </header>
+    <p>クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+    <input type="email" placeholder="work@example.com">
+    <footer>
+      <button class="secondary" onclick="document.getElementById('trial').close()">閉じる</button>
+      <button onclick="document.getElementById('trial').close()">開始する</button>
+    </footer>
+  </article>
+</dialog>
+
+<script>
+  // Picoに付属するJSは無い。テーマ切替だけこの数行を自分で書く
+  document.querySelectorAll('[data-set-theme]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.documentElement.setAttribute('data-theme', a.dataset.setTheme);
+      a.closest('details').open = false;
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open Props デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AC%3C/text%3E%3C/svg%3E">
+<!-- CDN: ①トークン本体 ②normalize（土台のタイポグラフィと自動ダークモード）③ボタンの既定スタイル -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/open-props.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/normalize.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/buttons.min.css" crossorigin="anonymous">
+<style>
+  /* ===========================================================
+     Open Props は「コンポーネント」を一切提供しません。
+     提供されるのは CSS 変数（デザイントークン）だけです。
+     見た目は下記のように "自分で" 書きますが、色・余白・影・
+     角丸・イージングの値を考える必要がありません。
+     =========================================================== */
+
+  :root {
+    --brand: var(--indigo-6);
+    --brand-soft: var(--indigo-2);
+    --accent: var(--teal-6);
+  }
+  /* ダークモード：normalizeがOS設定に自動追従するが、
+     手動切替は自分でトークンを差し替えて実装する */
+  [data-theme="light"] {
+    --text-1: var(--gray-12);
+    --text-2: var(--gray-7);
+    --surface-1: var(--gray-0);
+    --surface-2: var(--gray-2);
+    --surface-3: var(--gray-3);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --text-1: var(--gray-1);
+    --text-2: var(--gray-5);
+    --surface-1: var(--gray-11);
+    --surface-2: var(--gray-10);
+    --surface-3: var(--gray-9);
+    --brand: var(--indigo-4);
+    --brand-soft: var(--indigo-9);
+    color-scheme: dark;
+  }
+
+  .wrap { max-width: 72rem; margin-inline: auto; padding-inline: var(--size-4); }
+
+  /* ---- ナビ ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: var(--layer-3);
+    display: flex; flex-wrap: wrap; gap: var(--size-3); align-items: center;
+    padding-block: var(--size-3);
+    background: color-mix(in oklab, var(--surface-1) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-block-end: var(--border-size-1) solid var(--surface-3);
+  }
+  .topbar nav { display: flex; gap: var(--size-2); margin-inline-start: auto; flex-wrap: wrap; }
+  .topbar a { color: var(--text-2); text-decoration: none; padding: var(--size-1) var(--size-2); border-radius: var(--radius-2); }
+  .topbar a:hover { background: var(--surface-2); color: var(--text-1); }
+  .brand { font-weight: var(--font-weight-7); font-size: var(--font-size-3); }
+
+  /* ---- ヒーロー ---- */
+  .hero {
+    padding-block: var(--size-fluid-5);
+    background-image: var(--gradient-15);
+    color: white;
+    border-end-start-radius: var(--radius-4); border-end-end-radius: var(--radius-4);
+    animation: var(--animation-fade-in);
+  }
+  .hero h1 { font-size: var(--font-size-fluid-3); line-height: var(--font-lineheight-1); max-inline-size: 20ch; }
+  .hero p { font-size: var(--font-size-3); max-inline-size: var(--size-content-3); opacity: .92; }
+  .chip {
+    display: inline-block; padding: var(--size-1) var(--size-3);
+    border-radius: var(--radius-round); background: #ffffff2e;
+    font-size: var(--font-size-0); letter-spacing: var(--font-letterspacing-2);
+  }
+
+  /* ---- 汎用パーツ（すべてトークンで組み立て） ---- */
+  section { padding-block: var(--size-fluid-4); }
+  h2 { font-size: var(--font-size-5); }
+  .muted { color: var(--text-2); }
+  .grid-3 { display: grid; gap: var(--size-5); grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
+  .card {
+    background: var(--surface-2);
+    border-radius: var(--radius-3);
+    padding: var(--size-5);
+    box-shadow: var(--shadow-2);
+    transition: transform var(--ease-3) .2s, box-shadow var(--ease-3) .2s;
+  }
+  .card:hover { transform: translateY(calc(var(--size-1) * -1)); box-shadow: var(--shadow-4); }
+  .card .emoji { font-size: var(--font-size-6); animation: var(--animation-float); }
+  .price { font-size: var(--font-size-7); font-weight: var(--font-weight-8); line-height: 1; }
+  .featured { outline: var(--border-size-2) solid var(--brand); outline-offset: calc(var(--size-1) * -1); }
+  .tag {
+    display: inline-block; font-size: var(--font-size-0); padding: var(--size-1) var(--size-2);
+    border-radius: var(--radius-2); background: var(--brand-soft); color: var(--text-1);
+  }
+  .note {
+    border-inline-start: var(--border-size-3) solid var(--brand);
+    background: var(--surface-2); padding: var(--size-4);
+    border-radius: var(--radius-2); font-size: var(--font-size-1);
+  }
+  details {
+    background: var(--surface-2); border-radius: var(--radius-2);
+    padding: var(--size-3) var(--size-4); margin-block-end: var(--size-2);
+  }
+  details[open] { box-shadow: var(--shadow-2); }
+  summary { cursor: pointer; font-weight: var(--font-weight-6); }
+  details p { animation: var(--animation-slide-in-up); }
+  form { display: grid; gap: var(--size-3); background: var(--surface-2); padding: var(--size-5); border-radius: var(--radius-3); }
+  .token-demo { display: grid; gap: var(--size-3); grid-template-columns: repeat(auto-fit, minmax(min(13rem,100%),1fr)); }
+  .swatches { display: flex; gap: var(--size-2); flex-wrap: wrap; }
+  .swatch { inline-size: var(--size-8); block-size: var(--size-8); border-radius: var(--radius-2); box-shadow: var(--shadow-2); }
+  .shadow-demo { display: flex; gap: var(--size-4); flex-wrap: wrap; }
+  .shadow-demo div {
+    inline-size: var(--size-10); block-size: var(--size-9); border-radius: var(--radius-2);
+    background: var(--surface-1); display: grid; place-items: center; font-size: var(--font-size-0);
+  }
+  code, pre { font-family: var(--font-mono); font-size: var(--font-size-0); }
+  pre { background: var(--surface-3); padding: var(--size-4); border-radius: var(--radius-2); overflow-x: auto; }
+  footer { border-block-start: var(--border-size-1) solid var(--surface-3); padding-block: var(--size-5); color: var(--text-2); font-size: var(--font-size-0); }
+  .links { display: flex; flex-wrap: wrap; gap: var(--size-2); }
+</style>
+</head>
+<body>
+
+<div class="wrap topbar">
+  <span class="brand">🧬 Aurora Notes</span>
+  <nav>
+    <a href="#features">機能</a>
+    <a href="#pricing">料金</a>
+    <a href="#faq">FAQ</a>
+    <a href="#tokens">トークンとは</a>
+    <button id="themeBtn" style="font-size:var(--font-size-0)">🌗 テーマ</button>
+  </nav>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="chip">Open Props 1.7.23 ／ CSS変数のみ（gzip 約7KB）</span>
+    <h1>思考が途切れない、チームのためのノート</h1>
+    <p>
+      議事録・仕様・ナレッジをひとつに。このページには<strong>既製のコンポーネントが1つもありません</strong>。
+      色・余白・影・イージングだけをOpen Propsから借り、見た目は自分で書いています。
+    </p>
+    <p>
+      <button onclick="document.getElementById('trial').showModal()">▶ 無料で試す</button>
+      <a href="#pricing"><button>料金を見る</button></a>
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ▼ 機能 -->
+  <section id="features">
+    <h2>主な機能</h2>
+    <p class="muted">カードは <code>--surface-2</code> <code>--radius-3</code> <code>--shadow-2</code> の3つのトークンで作っています。</p>
+    <div class="grid-3">
+      <article class="card">
+        <p class="emoji">⚡</p>
+        <h3>高速な全文検索</h3>
+        <p class="muted">数万件のドキュメントでも100ms以内に候補を表示します。</p>
+        <p><span class="tag">検索</span> <span class="tag">インデックス</span></p>
+      </article>
+      <article class="card">
+        <p class="emoji">👥</p>
+        <h3>同時編集</h3>
+        <p class="muted">最大50人が同じページを同時に編集しても競合しません。</p>
+        <p><span class="tag">共同編集</span> <span class="tag">履歴</span></p>
+      </article>
+      <article class="card">
+        <p class="emoji">🔐</p>
+        <h3>権限管理</h3>
+        <p class="muted">部署・役職単位で閲覧範囲を細かく制御できます。</p>
+        <p><span class="tag">SSO</span> <span class="tag">監査ログ</span></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ▼ トークンそのものの紹介：このフレームワークの本体 -->
+  <section id="tokens">
+    <h2>Open Props の中身＝トークン</h2>
+    <p class="muted">CSSを書くとき「この余白いくつ？」「この影どのくらい？」を考えずに済むのが本質です。</p>
+    <div class="token-demo">
+      <div class="card">
+        <h3 style="font-size:var(--font-size-2)">色（--indigo-0 〜 --indigo-9）</h3>
+        <div class="swatches">
+          <span class="swatch" style="background:var(--indigo-2)"></span>
+          <span class="swatch" style="background:var(--indigo-4)"></span>
+          <span class="swatch" style="background:var(--indigo-6)"></span>
+          <span class="swatch" style="background:var(--indigo-8)"></span>
+          <span class="swatch" style="background:var(--teal-5)"></span>
+          <span class="swatch" style="background:var(--orange-5)"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:var(--font-size-2)">影（--shadow-1 〜 --shadow-6）</h3>
+        <div class="shadow-demo">
+          <div style="box-shadow:var(--shadow-1)">1</div>
+          <div style="box-shadow:var(--shadow-3)">3</div>
+          <div style="box-shadow:var(--shadow-5)">5</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:var(--font-size-2)">角丸・余白</h3>
+        <div class="shadow-demo">
+          <div style="border-radius:var(--radius-1);background:var(--brand-soft)">r1</div>
+          <div style="border-radius:var(--radius-3);background:var(--brand-soft)">r3</div>
+          <div style="border-radius:var(--radius-round);background:var(--brand-soft)">round</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:var(--font-size-2)">アニメーション</h3>
+        <p style="animation:var(--animation-pulse);display:inline-block;font-size:var(--font-size-4)">💡</p>
+        <p class="muted" style="font-size:var(--font-size-0)">
+          <code>--animation-fade-in</code> <code>--animation-slide-in-up</code>
+          <code>--animation-pulse</code> などが定義済み。
+        </p>
+      </div>
+    </div>
+    <div class="note" style="margin-block-start:var(--size-4)">
+      <strong>使い方はこれだけ：</strong>
+      <pre><code>.card {
+  background: var(--surface-2);
+  padding: var(--size-5);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
+  transition: transform var(--ease-3) .2s;
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- ▼ 料金 -->
+  <section id="pricing">
+    <h2>料金プラン</h2>
+    <div class="grid-3">
+      <article class="card" style="text-align:center">
+        <h3>Free</h3>
+        <p class="price">¥0</p><p class="muted">/ ユーザー / 月</p>
+        <ul style="text-align:start"><li>3名まで</li><li>1GBストレージ</li><li class="muted">権限管理なし</li></ul>
+        <button style="inline-size:100%">今すぐ始める</button>
+      </article>
+      <article class="card featured" style="text-align:center">
+        <p><span class="tag">おすすめ</span></p>
+        <h3>Team</h3>
+        <p class="price">¥1,200</p><p class="muted">/ ユーザー / 月</p>
+        <ul style="text-align:start"><li>人数無制限</li><li>100GBストレージ</li><li>権限管理</li></ul>
+        <button style="inline-size:100%" onclick="document.getElementById('trial').showModal()">14日間の無料トライアル</button>
+      </article>
+      <article class="card" style="text-align:center">
+        <h3>Enterprise</h3>
+        <p class="price">応相談</p><p class="muted">年間契約</p>
+        <ul style="text-align:start"><li>SAML / SCIM</li><li>監査ログ</li><li>専任サポート</li></ul>
+        <button style="inline-size:100%">問い合わせる</button>
+      </article>
+    </div>
+  </section>
+
+  <!-- ▼ FAQ・フォーム -->
+  <section id="faq" style="display:grid;gap:var(--size-7);grid-template-columns:repeat(auto-fit,minmax(min(22rem,100%),1fr))">
+    <div>
+      <h2>よくある質問</h2>
+      <details open>
+        <summary>既存のドキュメントを移行できますか？</summary>
+        <p class="muted">Markdown / Word / Confluence からの一括インポートに対応しています。</p>
+      </details>
+      <details>
+        <summary>オフラインでも使えますか？</summary>
+        <p class="muted">デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p>
+      </details>
+      <details>
+        <summary>データはどこに保存されますか？</summary>
+        <p class="muted">東京リージョンに保存され、日次でバックアップされます。</p>
+      </details>
+      <div class="note" style="margin-block-start:var(--size-4)">
+        <strong>Open Propsらしさ：</strong> 開閉パネルもモーダルもフレームワークは用意しません。
+        HTML標準の <code>&lt;details&gt;</code> と <code>&lt;dialog&gt;</code> を使い、見た目だけトークンで整えています。
+      </div>
+    </div>
+
+    <div id="contact">
+      <h2>お問い合わせ</h2>
+      <form onsubmit="event.preventDefault(); this.querySelector('output').textContent='送信しました（デモ）';">
+        <label>お名前<input type="text" placeholder="山田 太郎" required></label>
+        <label>メールアドレス<input type="email" placeholder="work@example.com" required></label>
+        <label>検討中のプラン
+          <select><option>Free</option><option selected>Team</option><option>Enterprise</option></select>
+        </label>
+        <label>ご相談内容<textarea rows="4" placeholder="導入検討中です…"></textarea></label>
+        <label style="display:flex;gap:var(--size-2);align-items:center"><input type="checkbox" required> 利用規約に同意します</label>
+        <button type="submit">送信する</button>
+        <output class="muted"></output>
+      </form>
+    </div>
+  </section>
+
+  <!-- ▼ 特徴まとめ -->
+  <section>
+    <h2>Open Props の特徴</h2>
+    <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr))">
+      <article class="card">
+        <h3>👍 長所</h3>
+        <ul class="muted" style="font-size:var(--font-size-1)">
+          <li>見た目の制約がゼロ。<strong>デザインを完全に自分で決められる</strong></li>
+          <li>色・余白・影・角丸・イージングの「値決め」から解放される</li>
+          <li>素のCSS変数なので、他のフレームワークや自作CSSと併用できる</li>
+          <li>必要なトークンだけ個別に読み込める（色だけ、影だけ、など）</li>
+          <li>normalize.css を併用すると、OSのダークモードに自動追従する</li>
+          <li>ビルド不要。CSSの知識がそのまま活きる</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>⚠️ 短所・注意点</h3>
+        <ul class="muted" style="font-size:var(--font-size-1)">
+          <li><strong>コンポーネントが一切ない</strong>。カードもナビもモーダルも自作</li>
+          <li>CSSを書ける人がいないと成立しない（＝そもそも代替品ではない）</li>
+          <li>作る人によって仕上がりの差が大きい</li>
+          <li>トークン名（<code>--size-5</code> など）を覚える必要がある</li>
+          <li>日本語情報はまだ少ない</li>
+        </ul>
+      </article>
+    </div>
+    <div class="note" style="margin-block-start:var(--size-4)">
+      <h3 style="font-size:var(--font-size-3);margin-block-end:var(--size-2)">向いているケース</h3>
+      <p>独自のデザインシステムを立ち上げたいプロダクト、デザイナーとエンジニアが一緒に作るチーム、
+        「Tailwindのような制約は欲しいがHTMLは汚したくない」という場面。
+        逆に、コンポーネントを借りて速く作りたい用途には Bootstrap や UIkit が適します。</p>
+      <h3 style="font-size:var(--font-size-3);margin-block:var(--size-4) var(--size-2)">CDNの書き方</h3>
+      <pre><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/open-props.min.css"&gt;
+&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/normalize.min.css"&gt;
+&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-props@1.7.23/buttons.min.css"&gt;</code></pre>
+    </div>
+  </section>
+
+  <!-- ▼ 他フレームワーク -->
+  <section>
+    <h3>他のフレームワークで見る</h3>
+    <div class="links">
+      <a href="index.html"><button>比較トップ</button></a>
+      <a href="bootstrap.html"><button>Bootstrap</button></a>
+      <a href="tailwind.html"><button>Tailwind</button></a>
+      <a href="bulma.html"><button>Bulma</button></a>
+      <a href="foundation.html"><button>Foundation</button></a>
+      <a href="uikit.html"><button>UIkit</button></a>
+      <a href="materialize.html"><button>Materialize</button></a>
+      <a href="fomantic-ui.html"><button>Fomantic UI</button></a>
+      <a href="pico.html"><button>Pico.css</button></a>
+      <a href="spectre.html"><button>Spectre.css</button></a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  Aurora Notes は比較用の架空サービスです。 / Built with Open Props 1.7.23
+</footer>
+
+<dialog id="trial" style="border:none;border-radius:var(--radius-3);padding:var(--size-5);background:var(--surface-2);color:var(--text-1);box-shadow:var(--shadow-5);max-inline-size:min(90vw,26rem)">
+  <h3>無料トライアル</h3>
+  <p class="muted">クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+  <input type="email" placeholder="work@example.com" style="inline-size:100%;margin-block:var(--size-3)">
+  <div style="display:flex;gap:var(--size-2);justify-content:flex-end">
+    <button onclick="document.getElementById('trial').close()">閉じる</button>
+    <button onclick="document.getElementById('trial').close()">開始する</button>
+  </div>
+</dialog>
+
+<script>
+  // Open Props に付属するJSは無い。テーマ切替はトークンを差し替えるだけ
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+</script>
+</body>
+</html>

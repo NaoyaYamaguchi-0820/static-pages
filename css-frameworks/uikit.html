@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UIkit デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<!-- CDN: CSS本体 + JS本体 + アイコンプラグイン -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/css/uikit.min.css" crossorigin="anonymous">
+</head>
+<body>
+
+<!-- ▼ ナビ：uk-sticky でスクロール追従。属性を書くだけで動く -->
+<div uk-sticky="sel-target: .uk-navbar-container; cls-active: uk-navbar-sticky">
+  <nav class="uk-navbar-container uk-navbar-transparent" uk-navbar>
+    <div class="uk-container">
+      <div class="uk-navbar-left">
+        <a class="uk-navbar-item uk-logo" href="#"><span uk-icon="icon: bolt; ratio: 1.2"></span>&nbsp;Aurora Notes</a>
+      </div>
+      <div class="uk-navbar-center uk-visible@m">
+        <ul class="uk-navbar-nav">
+          <li><a href="#features" uk-scroll>機能</a></li>
+          <li><a href="#pricing" uk-scroll>料金</a></li>
+          <li>
+            <a href="#">リソース <span uk-icon="chevron-down"></span></a>
+            <div class="uk-navbar-dropdown">
+              <ul class="uk-nav uk-navbar-dropdown-nav">
+                <li><a href="#faq" uk-scroll>よくある質問</a></li>
+                <li><a href="#contact" uk-scroll>お問い合わせ</a></li>
+                <li class="uk-nav-divider"></li>
+                <li><a href="index.html">比較トップへ戻る</a></li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="uk-navbar-right">
+        <a class="uk-button uk-button-primary uk-visible@s" href="#trial" uk-toggle>無料で試す</a>
+        <a class="uk-navbar-toggle uk-hidden@m" href="#sideMenu" uk-toggle>
+          <span uk-navbar-toggle-icon></span>
+        </a>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<!-- ▼ ヒーロー：uk-scrollspy でスクロールに合わせてふわっと表示 -->
+<div class="uk-section uk-section-primary uk-preserve-color uk-background-cover"
+     style="background-image:linear-gradient(135deg,#1e87f0 0%,#0b5ea8 55%,#0a2c4d 100%)">
+  <div class="uk-container">
+    <div class="uk-grid-large uk-flex-middle" uk-grid>
+      <div class="uk-width-3-5@m" uk-scrollspy="cls: uk-animation-slide-left-medium">
+        <span class="uk-label uk-label-warning">UIkit 3.25.21</span>
+        <h1 class="uk-heading-medium uk-margin-small-top">思考が途切れない、<br>チームのためのノート</h1>
+        <p class="uk-text-lead">
+          議事録・仕様・ナレッジをひとつに。このページのモーダル・スライダー・アコーディオンは
+          <strong>すべて <code>uk-*</code> 属性だけ</strong>で動いています。
+        </p>
+        <div class="uk-margin-medium-top">
+          <a class="uk-button uk-button-default uk-button-large" href="#trial" uk-toggle>▶ 無料で試す</a>
+          <a class="uk-button uk-button-text uk-margin-left" href="#pricing" uk-scroll>料金を見る</a>
+        </div>
+      </div>
+      <div class="uk-width-2-5@m" uk-scrollspy="cls: uk-animation-slide-right-medium">
+        <!-- スライダー：これも属性ひとつ -->
+        <div uk-slideshow="animation: push; autoplay: true; autoplay-interval: 3500; ratio: 4:3">
+          <div class="uk-position-relative">
+            <ul class="uk-slideshow-items">
+              <li>
+                <div class="uk-card uk-card-default uk-card-body uk-light" style="background:#123a63">
+                  <h3 class="uk-card-title">📝 エディタ</h3>
+                  <p>Markdownとリッチテキストを行き来しながら書けます。</p>
+                </div>
+              </li>
+              <li>
+                <div class="uk-card uk-card-default uk-card-body uk-light" style="background:#0f4d45">
+                  <h3 class="uk-card-title">🔍 検索</h3>
+                  <p>タイトル・本文・添付ファイルを横断して検索します。</p>
+                </div>
+              </li>
+              <li>
+                <div class="uk-card uk-card-default uk-card-body uk-light" style="background:#4a2f6b">
+                  <h3 class="uk-card-title">📊 分析</h3>
+                  <p>よく読まれているドキュメントを自動で可視化します。</p>
+                </div>
+              </li>
+            </ul>
+            <a class="uk-position-center-left uk-position-small" href uk-slidenav-previous uk-slideshow-item="previous"></a>
+            <a class="uk-position-center-right uk-position-small" href uk-slidenav-next uk-slideshow-item="next"></a>
+            <ul class="uk-slideshow-nav uk-dotnav uk-flex-center uk-margin"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▼ 機能 -->
+<section class="uk-section" id="features">
+  <div class="uk-container">
+    <h2 class="uk-heading-line"><span>主な機能</span></h2>
+    <p class="uk-text-meta">uk-grid + uk-child-width-1-3@m で3列。スクロールで順番にフェードインします。</p>
+    <div class="uk-child-width-1-3@m uk-grid-match" uk-grid uk-scrollspy="target: > div; cls: uk-animation-slide-bottom-small; delay: 150">
+      <div>
+        <div class="uk-card uk-card-default uk-card-body uk-card-hover">
+          <span uk-icon="icon: bolt; ratio: 2" class="uk-text-primary"></span>
+          <h3 class="uk-card-title uk-margin-small-top">高速な全文検索</h3>
+          <p>数万件のドキュメントでも100ms以内に候補を表示します。</p>
+          <span class="uk-label">検索</span> <span class="uk-label uk-label-success">インデックス</span>
+        </div>
+      </div>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body uk-card-hover">
+          <span uk-icon="icon: users; ratio: 2" class="uk-text-success"></span>
+          <h3 class="uk-card-title uk-margin-small-top">同時編集</h3>
+          <p>最大50人が同じページを同時に編集しても競合しません。</p>
+          <span class="uk-label">共同編集</span> <span class="uk-label uk-label-success">履歴</span>
+        </div>
+      </div>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body uk-card-hover">
+          <span uk-icon="icon: lock; ratio: 2" class="uk-text-warning"></span>
+          <h3 class="uk-card-title uk-margin-small-top">権限管理</h3>
+          <p>部署・役職単位で閲覧範囲を細かく制御できます。</p>
+          <span class="uk-label">SSO</span> <span class="uk-label uk-label-warning">監査ログ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- タブ + switcher -->
+    <div class="uk-margin-large-top">
+      <ul class="uk-tab" uk-switcher="animation: uk-animation-fade">
+        <li><a href="#">導入の流れ</a></li>
+        <li><a href="#">セキュリティ</a></li>
+        <li><a href="#">サポート</a></li>
+      </ul>
+      <ul class="uk-switcher uk-margin">
+        <li>
+          <ul class="uk-list uk-list-decimal">
+            <li>アカウントを作成（1分）</li>
+            <li>既存ドキュメントをインポート</li>
+            <li>メンバーを招待して運用開始</li>
+          </ul>
+        </li>
+        <li><p>ISO 27001 準拠。通信・保存ともに暗号化し、監査ログを180日保持します。</p></li>
+        <li><p>平日9:00〜18:00のチャットサポート。Enterpriseプランは専任担当が付きます。</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ▼ 料金 -->
+<section class="uk-section uk-section-muted" id="pricing">
+  <div class="uk-container">
+    <h2 class="uk-heading-line"><span>料金プラン</span></h2>
+    <div class="uk-child-width-1-3@m uk-grid-match uk-margin-top" uk-grid>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body uk-text-center">
+          <h3 class="uk-card-title">Free</h3>
+          <div class="uk-heading-small">¥0</div>
+          <p class="uk-text-meta">/ ユーザー / 月</p>
+          <ul class="uk-list uk-text-left uk-text-small">
+            <li><span uk-icon="check" class="uk-text-success"></span> 3名まで</li>
+            <li><span uk-icon="check" class="uk-text-success"></span> 1GBストレージ</li>
+            <li><span uk-icon="close" class="uk-text-danger"></span> 権限管理</li>
+          </ul>
+          <button class="uk-button uk-button-default uk-width-1-1">今すぐ始める</button>
+        </div>
+      </div>
+      <div>
+        <div class="uk-card uk-card-primary uk-card-body uk-text-center uk-box-shadow-xlarge">
+          <span class="uk-label uk-label-warning">おすすめ</span>
+          <h3 class="uk-card-title uk-margin-small-top">Team</h3>
+          <div class="uk-heading-small">¥1,200</div>
+          <p class="uk-text-meta uk-light">/ ユーザー / 月</p>
+          <ul class="uk-list uk-text-left uk-text-small">
+            <li><span uk-icon="check"></span> 人数無制限</li>
+            <li><span uk-icon="check"></span> 100GBストレージ</li>
+            <li><span uk-icon="check"></span> 権限管理</li>
+          </ul>
+          <a class="uk-button uk-button-default uk-width-1-1" href="#trial" uk-toggle>14日間の無料トライアル</a>
+        </div>
+      </div>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body uk-text-center">
+          <h3 class="uk-card-title">Enterprise</h3>
+          <div class="uk-heading-small">応相談</div>
+          <p class="uk-text-meta">年間契約</p>
+          <ul class="uk-list uk-text-left uk-text-small">
+            <li><span uk-icon="check" class="uk-text-success"></span> SAML / SCIM</li>
+            <li><span uk-icon="check" class="uk-text-success"></span> 監査ログ</li>
+            <li><span uk-icon="check" class="uk-text-success"></span> 専任サポート</li>
+          </ul>
+          <button class="uk-button uk-button-default uk-width-1-1">問い合わせる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ▼ FAQ（アコーディオン）＋ フォーム -->
+<section class="uk-section">
+  <div class="uk-container">
+    <div class="uk-child-width-1-2@l uk-grid-large" uk-grid>
+      <div id="faq">
+        <h2 class="uk-heading-line"><span>よくある質問</span></h2>
+        <ul uk-accordion="multiple: true">
+          <li class="uk-open">
+            <a class="uk-accordion-title" href>既存のドキュメントを移行できますか？</a>
+            <div class="uk-accordion-content"><p>Markdown / Word / Confluence からの一括インポートに対応しています。</p></div>
+          </li>
+          <li>
+            <a class="uk-accordion-title" href>オフラインでも使えますか？</a>
+            <div class="uk-accordion-content"><p>デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p></div>
+          </li>
+          <li>
+            <a class="uk-accordion-title" href>データはどこに保存されますか？</a>
+            <div class="uk-accordion-content"><p>東京リージョンに保存され、日次でバックアップされます。</p></div>
+          </li>
+        </ul>
+        <div class="uk-alert-primary uk-margin-top" uk-alert>
+          <a class="uk-alert-close" uk-close></a>
+          <p class="uk-text-small"><strong>UIkitらしさ：</strong> アコーディオン・スライダー・モーダル・通知まで、JSを1行も書かずに属性だけで完結します。</p>
+        </div>
+        <button class="uk-button uk-button-secondary" id="notifyBtn">
+          <span uk-icon="bell"></span> 通知を出す（UIkit.notification）
+        </button>
+      </div>
+
+      <div id="contact">
+        <h2 class="uk-heading-line"><span>お問い合わせ</span></h2>
+        <form class="uk-form-stacked uk-card uk-card-default uk-card-body">
+          <div class="uk-margin">
+            <label class="uk-form-label" for="f-name">お名前</label>
+            <div class="uk-form-controls uk-inline uk-width-1-1">
+              <span class="uk-form-icon" uk-icon="icon: user"></span>
+              <input class="uk-input" id="f-name" type="text" placeholder="山田 太郎">
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label" for="f-mail">メールアドレス</label>
+            <div class="uk-form-controls uk-inline uk-width-1-1">
+              <span class="uk-form-icon" uk-icon="icon: mail"></span>
+              <input class="uk-input" id="f-mail" type="email" placeholder="work@example.com">
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label" for="f-plan">検討中のプラン</label>
+            <div class="uk-form-controls">
+              <select class="uk-select" id="f-plan"><option>Free</option><option selected>Team</option><option>Enterprise</option></select>
+            </div>
+          </div>
+          <div class="uk-margin">
+            <label class="uk-form-label" for="f-msg">ご相談内容</label>
+            <div class="uk-form-controls"><textarea class="uk-textarea" id="f-msg" rows="4" placeholder="導入検討中です…"></textarea></div>
+          </div>
+          <div class="uk-margin">
+            <label><input class="uk-checkbox" type="checkbox"> 利用規約に同意します</label>
+          </div>
+          <button class="uk-button uk-button-primary" type="button" onclick="UIkit.notification({message:'送信しました（デモ）', status:'success', pos:'bottom-right'})">送信する</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ▼ 特徴まとめ -->
+<section class="uk-section uk-section-muted">
+  <div class="uk-container">
+    <h2 class="uk-heading-line"><span>UIkit の特徴</span></h2>
+    <div class="uk-child-width-1-2@m uk-grid-match" uk-grid>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body">
+          <h3 class="uk-card-title uk-text-success">👍 長所</h3>
+          <ul class="uk-list uk-list-bullet uk-text-small">
+            <li><strong>属性を書くだけ</strong>でモーダル・スライダー・スクロール演出・通知が動く</li>
+            <li>アニメーション・トランジションの完成度が高く、動きのあるLPが最速で作れる</li>
+            <li>SVGアイコンセット（<code>uk-icon</code>）が同梱され、追加読み込み不要</li>
+            <li>グリッドが柔軟（<code>uk-child-width-1-3@m</code> のようにブレークポイント指定が簡潔）</li>
+            <li>コンポーネント同士のデザインの統一感が非常に高い</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div class="uk-card uk-card-default uk-card-body">
+          <h3 class="uk-card-title uk-text-warning">⚠️ 短所・注意点</h3>
+          <ul class="uk-list uk-list-bullet uk-text-small">
+            <li>JSが必須で、gzip後でも約51KB。静的サイトには重く感じる場合がある</li>
+            <li>独自のクラス体系（すべて <code>uk-</code> 接頭辞）で、他フレームワークの知識が流用しにくい</li>
+            <li>日本語情報が少なく、公式ドキュメント（英語）が主な情報源</li>
+            <li>デザインの個性が強く、大幅に変えるならLESS/SCSSの再ビルドが必要</li>
+            <li>商用利用は無料だが、Pro版（有料）との機能差がある</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="uk-card uk-card-default uk-card-body uk-margin-top">
+      <h3 class="uk-card-title">向いているケース</h3>
+      <p class="uk-text-small">動きのあるコーポレートサイト・LP、短期間で見栄えのするプロトタイプを作る場面。「JSは書きたくないが動きは欲しい」という要求に最も強く応えます。</p>
+      <h3 class="uk-card-title uk-margin-top">CDNの書き方</h3>
+      <pre class="uk-text-small"><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/css/uikit.min.css"&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/js/uikit.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/js/uikit-icons.min.js"&gt;&lt;/script&gt;</code></pre>
+    </div>
+
+    <h3 class="uk-heading-line uk-margin-large-top"><span>他のフレームワークで見る</span></h3>
+    <div class="uk-margin">
+      <a class="uk-button uk-button-default uk-button-small" href="index.html">比較トップ</a>
+      <a class="uk-button uk-button-default uk-button-small" href="bootstrap.html">Bootstrap</a>
+      <a class="uk-button uk-button-default uk-button-small" href="tailwind.html">Tailwind</a>
+      <a class="uk-button uk-button-default uk-button-small" href="bulma.html">Bulma</a>
+      <a class="uk-button uk-button-default uk-button-small" href="foundation.html">Foundation</a>
+      <a class="uk-button uk-button-default uk-button-small" href="materialize.html">Materialize</a>
+      <a class="uk-button uk-button-default uk-button-small" href="fomantic-ui.html">Fomantic UI</a>
+      <a class="uk-button uk-button-default uk-button-small" href="pico.html">Pico.css</a>
+      <a class="uk-button uk-button-default uk-button-small" href="spectre.html">Spectre.css</a>
+      <a class="uk-button uk-button-default uk-button-small" href="open-props.html">Open Props</a>
+    </div>
+  </div>
+</section>
+
+<footer class="uk-section uk-section-secondary uk-section-xsmall">
+  <div class="uk-container"><p class="uk-text-small uk-margin-remove">Aurora Notes は比較用の架空サービスです。 / Built with UIkit 3.25.21</p></div>
+</footer>
+
+<!-- ▼ モーダル -->
+<div id="trial" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h2 class="uk-modal-title">無料トライアル</h2>
+    <p>クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+    <div class="uk-inline uk-width-1-1">
+      <span class="uk-form-icon" uk-icon="icon: mail"></span>
+      <input class="uk-input" type="email" placeholder="work@example.com">
+    </div>
+    <p class="uk-text-right uk-margin-top">
+      <button class="uk-button uk-button-default uk-modal-close" type="button">閉じる</button>
+      <button class="uk-button uk-button-primary uk-modal-close" type="button">開始する</button>
+    </p>
+  </div>
+</div>
+
+<!-- ▼ オフキャンバス（モバイルメニュー） -->
+<div id="sideMenu" uk-offcanvas="overlay: true">
+  <div class="uk-offcanvas-bar">
+    <button class="uk-offcanvas-close" type="button" uk-close></button>
+    <h3>メニュー</h3>
+    <ul class="uk-nav uk-nav-default">
+      <li><a href="#features" uk-scroll>機能</a></li>
+      <li><a href="#pricing" uk-scroll>料金</a></li>
+      <li><a href="#faq" uk-scroll>よくある質問</a></li>
+      <li><a href="#contact" uk-scroll>お問い合わせ</a></li>
+      <li class="uk-nav-divider"></li>
+      <li><a href="index.html">比較トップへ戻る</a></li>
+    </ul>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/js/uikit.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/uikit@3.25.21/dist/js/uikit-icons.min.js" crossorigin="anonymous"></script>
+<script>
+  // UIkitはJS APIも用意されている（通知はその一例）
+  document.getElementById('notifyBtn').addEventListener('click', () => {
+    UIkit.notification({ message: '<span uk-icon="icon: bell"></span> 新しいコメントが届きました', status: 'primary', pos: 'bottom-right', timeout: 3000 });
+  });
+</script>
+</body>
+</html>

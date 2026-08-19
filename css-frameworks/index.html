@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSSフレームワーク比較 | Aurora Notes デモ集</title>
+<meta name="description" content="主要CSSフレームワーク10種を同じ題材（架空SaaS「Aurora Notes」のLP）で実装し、特徴を比較するデモ集。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AA%3C/text%3E%3C/svg%3E">
+<style>
+  /* このハブページだけは意図的にフレームワーク非依存（素のCSS）で書いています */
+  :root {
+    --bg: #0f1020; --panel: #191a33; --panel-2: #21224180; --text: #e8e9f5;
+    --muted: #a4a7c9; --line: #33355e; --accent: #7c6cff; --accent-2: #35d0ba;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+  header.hero {
+    padding: 72px 0 56px;
+    background:
+      radial-gradient(900px 400px at 10% -10%, #7c6cff55, transparent 60%),
+      radial-gradient(700px 400px at 90% 0%, #35d0ba44, transparent 60%);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin: 0 0 12px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); max-width: 62ch; margin: 0 0 24px; }
+  .pill { display:inline-block; font-size:.8rem; padding:4px 12px; border:1px solid var(--line);
+          border-radius:999px; background: var(--panel-2); color: var(--muted); margin-bottom:16px; }
+  h2 { margin: 56px 0 8px; font-size: 1.5rem; }
+  h2 + p { color: var(--muted); margin-top: 0; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 24px; }
+  .card {
+    display: block; text-decoration: none; color: inherit; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 16px;
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 30px #0004; }
+  .card h3 { margin: 0 0 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0 0 12px; color: var(--muted); font-size: .92rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: .72rem; padding: 2px 8px; border-radius: 6px; background: var(--panel-2);
+         border: 1px solid var(--line); color: var(--muted); }
+  .tag.type { border-color: var(--accent); color: var(--accent); }
+  .table-scroll { overflow-x: auto; margin-top: 20px; border: 1px solid var(--line); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; font-size: .9rem; background: var(--panel); }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--panel-2); position: sticky; top: 0; font-size: .82rem; letter-spacing: .02em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.name { font-weight: 600; white-space: nowrap; }
+  .yes { color: var(--accent-2); } .no { color: #ff7b8a; }
+  .note { background: var(--panel-2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+          border-radius: 10px; padding: 14px 18px; margin-top: 24px; color: var(--muted); font-size: .92rem; }
+  footer { margin: 72px 0 48px; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 20px; }
+  code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: .85em; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill">🧪 CSS Framework Comparison</span>
+    <h1>CSSフレームワーク比較デモ集</h1>
+    <p class="lead">
+      主要なCSSフレームワーク10種を、<strong>まったく同じ題材</strong>（架空のSaaS「Aurora Notes」のランディングページ）で実装しました。
+      すべてCDN読み込みのみ・ビルド不要で、1ファイルで完結しています。
+      同じ画面を並べて見ることで、クラス設計の思想・記述量・付属コンポーネントの差がそのまま比較できます。
+    </p>
+    <p class="lead">各ページの最後には「このフレームワークの特徴・長所・短所・向いているケース」をまとめてあります。</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h2>デモ一覧</h2>
+  <p>カードをクリックすると各フレームワークの実装ページへ移動します。</p>
+
+  <div class="grid">
+    <a class="card" href="bootstrap.html">
+      <h3>🅱️ Bootstrap 5</h3>
+      <p>コンポーネント総合デパート。業務システムの定番で、情報量も人材も最多。</p>
+      <div class="tags"><span class="tag type">コンポーネント型</span><span class="tag">JS同梱</span><span class="tag">30KB gzip</span></div>
+    </a>
+    <a class="card" href="tailwind.html">
+      <h3>🌬️ Tailwind CSS</h3>
+      <p>ユーティリティファースト。HTMLにクラスを積み上げてデザインを組む。</p>
+      <div class="tags"><span class="tag type">ユーティリティ型</span><span class="tag">JS非依存</span><span class="tag">要ビルド(本番)</span></div>
+    </a>
+    <a class="card" href="bulma.html">
+      <h3>💎 Bulma</h3>
+      <p>JavaScript完全ゼロ。<code>is-*</code> / <code>has-*</code> のモディファイア記法が読みやすい。</p>
+      <div class="tags"><span class="tag type">コンポーネント型</span><span class="tag">JSなし</span><span class="tag">64KB gzip</span></div>
+    </a>
+    <a class="card" href="foundation.html">
+      <h3>🏛️ Foundation</h3>
+      <p>XY Grid とフォームバリデーション(Abide)。エンタープライズ／メール制作向け。</p>
+      <div class="tags"><span class="tag type">コンポーネント型</span><span class="tag">jQuery必須</span><span class="tag">17KB gzip</span></div>
+    </a>
+    <a class="card" href="uikit.html">
+      <h3>⚡ UIkit</h3>
+      <p><code>uk-*</code> 属性を書くだけでモーダル・スライダー・スクロール演出まで動く。</p>
+      <div class="tags"><span class="tag type">属性駆動</span><span class="tag">JSリッチ</span><span class="tag">30KB gzip</span></div>
+    </a>
+    <a class="card" href="materialize.html">
+      <h3>🎨 Materialize</h3>
+      <p>マテリアルデザインをそのまま実装。影・FAB・リップルの世界観が一発で出る。</p>
+      <div class="tags"><span class="tag type">デザイン特化</span><span class="tag">JS同梱</span><span class="tag">22KB gzip</span></div>
+    </a>
+    <a class="card" href="fomantic-ui.html">
+      <h3>📚 Fomantic UI</h3>
+      <p><code>ui three column stackable grid</code> ── 英語の文章のようなクラス名が最大の個性。</p>
+      <div class="tags"><span class="tag type">コンポーネント型</span><span class="tag">jQuery必須</span><span class="tag">181KB gzip</span></div>
+    </a>
+    <a class="card" href="pico.html">
+      <h3>🥧 Pico.css</h3>
+      <p>クラスレス。素のHTMLタグを書くだけで整う。管理画面や資料サイトに最適。</p>
+      <div class="tags"><span class="tag type">クラスレス</span><span class="tag">JSなし</span><span class="tag">11KB gzip</span></div>
+    </a>
+    <a class="card" href="spectre.html">
+      <h3>🪶 Spectre.css</h3>
+      <p>軽量フレックス系。必要なものだけが入った9KBの小さな道具箱。</p>
+      <div class="tags"><span class="tag type">軽量型</span><span class="tag">JSなし</span><span class="tag">9KB gzip</span></div>
+    </a>
+    <a class="card" href="open-props.html">
+      <h3>🧬 Open Props</h3>
+      <p>コンポーネントは無し。CSS変数（デザイントークン）だけを提供する新しい形。</p>
+      <div class="tags"><span class="tag type">トークン型</span><span class="tag">JSなし</span><span class="tag">7KB gzip</span></div>
+    </a>
+  </div>
+
+  <h2>一覧比較表</h2>
+  <p>CSSサイズは各パッケージの配布 min ファイルを実測した参考値です（gzip後）。</p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>フレームワーク</th><th>バージョン</th><th>タイプ</th>
+          <th>CSS(min/gzip)</th><th>JS依存</th><th>ダークモード</th>
+          <th>学習コスト</th><th>向いているケース</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="name">Bootstrap</td><td>5.3.8</td><td>コンポーネント＋ユーティリティ</td>
+          <td>226KB / 30KB</td><td>付属JS（任意・jQuery不要）</td><td class="yes">公式対応 <code>data-bs-theme</code></td>
+          <td>低</td><td>業務システム、社内ツール、短納期案件</td></tr>
+        <tr><td class="name">Tailwind CSS</td><td>3系(CDN) / 4系(本番)</td><td>ユーティリティ</td>
+          <td>ビルド後は使用分のみ（数KB〜）</td><td class="no">不要</td><td class="yes"><code>dark:</code> バリアント</td>
+          <td>中（クラス語彙の暗記）</td><td>独自デザインを崩さず作りたいプロダクト</td></tr>
+        <tr><td class="name">Bulma</td><td>1.0.4</td><td>コンポーネント</td>
+          <td>662KB / 64KB</td><td class="no">完全ゼロ</td><td class="yes">v1でCSS変数＋自動切替</td>
+          <td>低</td><td>静的サイト、LP、JSを増やしたくない場面</td></tr>
+        <tr><td class="name">Foundation</td><td>6.9.0</td><td>コンポーネント</td>
+          <td>128KB / 17KB</td><td>jQuery 3系が必須</td><td>手動（Sass変数）</td>
+          <td>中〜高</td><td>大規模サイト、アクセシビリティ要件、HTMLメール</td></tr>
+        <tr><td class="name">UIkit</td><td>3.25.21</td><td>属性駆動コンポーネント</td>
+          <td>277KB / 30KB</td><td>専用JS（51KB gzip）</td><td class="yes">反転クラス <code>uk-light</code></td>
+          <td>中</td><td>動きのあるLP、プロトタイプの高速制作</td></tr>
+        <tr><td class="name">Materialize</td><td>2.3.3</td><td>デザインシステム特化</td>
+          <td>153KB / 22KB</td><td>専用JS（jQuery不要）</td><td>限定的</td>
+          <td>低</td><td>マテリアルデザイン準拠のアプリ・管理画面</td></tr>
+        <tr><td class="name">Fomantic UI</td><td>2.9.4</td><td>コンポーネント</td>
+          <td>1678KB / 181KB</td><td>jQuery必須（105KB gzip）</td><td class="yes">v2.9で <code>inverted</code> 拡張</td>
+          <td>中</td><td>管理画面、コンポーネント数を最優先する場面</td></tr>
+        <tr><td class="name">Pico.css</td><td>2.1.1</td><td>クラスレス</td>
+          <td>81KB / 11KB</td><td class="no">不要</td><td class="yes"><code>data-theme</code> と自動切替</td>
+          <td class="yes">ほぼゼロ</td><td>ドキュメント、社内ツール、CMS出力、MVP</td></tr>
+        <tr><td class="name">Spectre.css</td><td>0.5.9</td><td>軽量コンポーネント</td>
+          <td>45KB / 9KB</td><td class="no">不要</td><td>手動</td>
+          <td>低</td><td>軽さ最優先の小規模サイト、社内ダッシュボード</td></tr>
+        <tr><td class="name">Open Props</td><td>1.7.23</td><td>デザイントークン</td>
+          <td>28KB / 7KB</td><td class="no">不要</td><td class="yes">トークンが自動追従</td>
+          <td>中（CSSを自分で書く）</td><td>デザインを完全自作したいが土台は欲しい場面</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>選び方のめやす</h2>
+  <div class="note">
+    <p><strong>「とにかく早く形にしたい・チームの人数が多い」→ Bootstrap</strong>。情報量と採用実績が圧倒的で、迷ったときの安全牌です。</p>
+    <p><strong>「デザインカンプ通りに作りたい」→ Tailwind CSS</strong>。既定の見た目を打ち消す作業が発生しません。ただし本番はビルド前提。</p>
+    <p><strong>「JSを一切増やしたくない」→ Bulma / Spectre.css</strong>。CSSだけで完結し、挙動が必要な部分だけ自分で書けます。</p>
+    <p><strong>「HTMLを書くだけで整えたい」→ Pico.css</strong>。クラス名を覚える必要がなく、社内ツールなら十分な品質になります。</p>
+    <p><strong>「動きのあるLPを最速で」→ UIkit</strong>。モーダル・スライダー・スクロール演出が属性だけで動きます。</p>
+    <p><strong>「デザインシステムを自作する」→ Open Props</strong>。色・余白・影・イージングの土台だけを借り、見た目は完全に自分で決めます。</p>
+  </div>
+
+  <h2>比較の条件</h2>
+  <div class="note">
+    <p>・すべてのページで同じ内容（ヒーロー／機能3件／料金3プラン／開閉パネル or モーダル／問い合わせフォーム）を実装しています。</p>
+    <p>・すべてCDN読み込みのみ、ビルドツール・パッケージ管理なし。ページを開けばそのまま動きます。</p>
+    <p>・各フレームワークの<strong>「らしさ」が出る機能</strong>を意図的に使っています（例：Bootstrapのカラーモード、Bulmaのスケルトン、UIkitのスクロール演出、Picoのクラスレス）。</p>
+    <p>・CDN配信のため、初回表示時はネットワーク接続が必要です。</p>
+  </div>
+
+</main>
+
+<footer class="wrap">
+  <p>Aurora Notes は比較用の架空サービスです。各フレームワークのロゴ・商標はそれぞれの権利者に帰属します。</p>
+</footer>
+
+</body>
+</html>

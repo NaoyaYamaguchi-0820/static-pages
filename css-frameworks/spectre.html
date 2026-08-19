@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spectre.css デモ | CSSフレームワーク比較</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%B6%3C/text%3E%3C/svg%3E">
+<!-- CDN: 本体(9KB gzip) + 実験的コンポーネント + CSSだけで描かれるアイコン -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre-exp.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre-icons.min.css" crossorigin="anonymous">
+<style>
+  .hero-band { background: linear-gradient(135deg,#5755d9 0%,#3e3cb0 55%,#22206b 100%); color:#fff; }
+  .hero-band .btn.btn-primary { background:#fff; border-color:#fff; color:#5755d9; }
+  .price-featured { border: 2px solid #5755d9; }
+  section { margin-top: 3rem; }
+</style>
+</head>
+<body>
+
+<!-- ▼ ナビ：navbar。JSは無いので開閉メニューは持たない（軽さと引き換え） -->
+<header class="navbar p-2" style="border-bottom:1px solid #e7e9ed">
+  <section class="navbar-section">
+    <a href="#" class="navbar-brand mr-2 text-bold">🪶 Aurora Notes</a>
+    <a href="#features" class="btn btn-link">機能</a>
+    <a href="#pricing" class="btn btn-link">料金</a>
+    <a href="#faq" class="btn btn-link">FAQ</a>
+  </section>
+  <section class="navbar-section">
+    <div class="input-group input-inline hide-sm">
+      <input class="form-input input-sm" type="text" placeholder="検索">
+      <button class="btn btn-primary btn-sm input-group-btn"><i class="icon icon-search"></i></button>
+    </div>
+    <a href="#trialModal" class="btn btn-primary ml-2">無料で試す</a>
+  </section>
+</header>
+
+<!-- ▼ ヒーロー：hero + hero-body -->
+<div class="hero hero-lg hero-band">
+  <div class="container grid-lg">
+    <div class="hero-body">
+      <span class="label label-warning">Spectre.css 0.5.9 ／ CSS 9KB(gzip)</span>
+      <h1 class="mt-2">思考が途切れない、<br>チームのためのノート</h1>
+      <p class="text-large">
+        議事録・仕様・ナレッジをひとつに。<br>
+        必要なものだけが入った<strong>小さな道具箱</strong>で組み立てています。
+      </p>
+      <a href="#trialModal" class="btn btn-primary btn-lg">無料で試す</a>
+      <a href="#pricing" class="btn btn-lg" style="color:#fff;border-color:#fff">料金を見る</a>
+    </div>
+  </div>
+</div>
+
+<div class="container grid-lg" style="padding-bottom:3rem">
+
+  <!-- ▼ 機能：columns / col-4（12分割のFlexboxグリッド） -->
+  <section id="features">
+    <h2 class="h4">主な機能</h2>
+    <p class="text-gray">グリッドは <code>columns</code> の中に <code>column col-4 col-sm-12</code> を置きます。</p>
+    <div class="columns">
+      <div class="column col-4 col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title h5"><i class="icon icon-flag"></i> 高速な全文検索</div>
+            <div class="card-subtitle text-gray">Search</div>
+          </div>
+          <div class="card-body">数万件のドキュメントでも100ms以内に候補を表示します。</div>
+          <div class="card-footer">
+            <span class="chip">検索</span><span class="chip">インデックス</span>
+          </div>
+        </div>
+      </div>
+      <div class="column col-4 col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title h5"><i class="icon icon-people"></i> 同時編集</div>
+            <div class="card-subtitle text-gray">Collaboration</div>
+          </div>
+          <div class="card-body">最大50人が同じページを同時に編集しても競合しません。</div>
+          <div class="card-footer">
+            <span class="chip">共同編集</span><span class="chip">履歴</span>
+          </div>
+        </div>
+      </div>
+      <div class="column col-4 col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title h5"><i class="icon icon-check"></i> 権限管理</div>
+            <div class="card-subtitle text-gray">Security</div>
+          </div>
+          <div class="card-body">部署・役職単位で閲覧範囲を細かく制御できます。</div>
+          <div class="card-footer">
+            <span class="chip">SSO</span><span class="chip">監査ログ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- tile / avatar / bar：小さな部品が一通り揃っている -->
+    <div class="columns mt-2">
+      <div class="column col-6 col-sm-12">
+        <div class="tile tile-centered p-2" style="background:#f7f8f9;border-radius:.2rem">
+          <div class="tile-icon">
+            <figure class="avatar avatar-lg" data-initial="田" style="background:#5755d9"></figure>
+          </div>
+          <div class="tile-content">
+            <p class="tile-title text-bold">田中 一郎</p>
+            <p class="tile-subtitle text-gray">「設計レビュー議事録」を更新しました</p>
+          </div>
+          <div class="tile-action"><button class="btn btn-link"><i class="icon icon-more-vert"></i></button></div>
+        </div>
+      </div>
+      <div class="column col-6 col-sm-12">
+        <div class="p-2">
+          <p class="text-small text-gray mb-1">ストレージ使用量（bar / bar-item）</p>
+          <div class="bar">
+            <div class="bar-item" role="progressbar" style="width:62%" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100">62%</div>
+          </div>
+          <p class="text-small text-gray mt-2 mb-1">実験的コンポーネントの meter</p>
+          <div class="meter"><div class="meter-item" style="width:78%"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ▼ 料金 -->
+  <section id="pricing">
+    <h2 class="h4">料金プラン</h2>
+    <div class="columns">
+      <div class="column col-4 col-sm-12">
+        <div class="card text-center">
+          <div class="card-header"><div class="card-title h5">Free</div></div>
+          <div class="card-body">
+            <div class="h1">¥0</div><div class="text-gray text-small">/ ユーザー / 月</div>
+            <ul class="text-left mt-2">
+              <li><i class="icon icon-check text-success"></i> 3名まで</li>
+              <li><i class="icon icon-check text-success"></i> 1GBストレージ</li>
+              <li><i class="icon icon-cross text-error"></i> 権限管理</li>
+            </ul>
+          </div>
+          <div class="card-footer"><button class="btn btn-block">今すぐ始める</button></div>
+        </div>
+      </div>
+      <div class="column col-4 col-sm-12">
+        <div class="card text-center price-featured">
+          <div class="card-header">
+            <div class="card-title h5">Team <span class="label label-primary">おすすめ</span></div>
+          </div>
+          <div class="card-body">
+            <div class="h1">¥1,200</div><div class="text-gray text-small">/ ユーザー / 月</div>
+            <ul class="text-left mt-2">
+              <li><i class="icon icon-check text-success"></i> 人数無制限</li>
+              <li><i class="icon icon-check text-success"></i> 100GBストレージ</li>
+              <li><i class="icon icon-check text-success"></i> 権限管理</li>
+            </ul>
+          </div>
+          <div class="card-footer"><a href="#trialModal" class="btn btn-primary btn-block">14日間の無料トライアル</a></div>
+        </div>
+      </div>
+      <div class="column col-4 col-sm-12">
+        <div class="card text-center">
+          <div class="card-header"><div class="card-title h5">Enterprise</div></div>
+          <div class="card-body">
+            <div class="h1">応相談</div><div class="text-gray text-small">年間契約</div>
+            <ul class="text-left mt-2">
+              <li><i class="icon icon-check text-success"></i> SAML / SCIM</li>
+              <li><i class="icon icon-check text-success"></i> 監査ログ</li>
+              <li><i class="icon icon-check text-success"></i> 専任サポート</li>
+            </ul>
+          </div>
+          <div class="card-footer"><button class="btn btn-block">問い合わせる</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ▼ FAQ（CSSだけで開閉するアコーディオン）＋ フォーム -->
+  <section class="columns">
+    <div class="column col-6 col-sm-12" id="faq">
+      <h2 class="h4">よくある質問</h2>
+      <!-- Spectreのアコーディオンは checkbox + label のCSSトリック。JSは不要 -->
+      <div class="accordion">
+        <input type="checkbox" id="acc-1" name="acc-checkbox" hidden checked>
+        <label class="accordion-header c-hand" for="acc-1"><i class="icon icon-arrow-right mr-1"></i>既存のドキュメントを移行できますか？</label>
+        <div class="accordion-body">
+          <p class="text-small">Markdown / Word / Confluence からの一括インポートに対応しています。</p>
+        </div>
+      </div>
+      <div class="accordion">
+        <input type="checkbox" id="acc-2" name="acc-checkbox" hidden>
+        <label class="accordion-header c-hand" for="acc-2"><i class="icon icon-arrow-right mr-1"></i>オフラインでも使えますか？</label>
+        <div class="accordion-body">
+          <p class="text-small">デスクトップアプリで下書きの編集が可能です。復帰時に自動同期します。</p>
+        </div>
+      </div>
+      <div class="accordion">
+        <input type="checkbox" id="acc-3" name="acc-checkbox" hidden>
+        <label class="accordion-header c-hand" for="acc-3"><i class="icon icon-arrow-right mr-1"></i>データはどこに保存されますか？</label>
+        <div class="accordion-body">
+          <p class="text-small">東京リージョンに保存され、日次でバックアップされます。</p>
+        </div>
+      </div>
+
+      <div class="toast toast-primary mt-2">
+        <strong>Spectreらしさ：</strong> アコーディオンもモーダルも <strong>CSSだけ</strong>で開閉します。
+        アイコンも画像やフォントではなく、<code>::before</code> で描かれた図形です。
+      </div>
+
+      <!-- empty state：地味に便利なコンポーネント -->
+      <div class="empty mt-2">
+        <div class="empty-icon"><i class="icon icon-3x icon-mail"></i></div>
+        <p class="empty-title h5">まだドキュメントがありません</p>
+        <p class="empty-subtitle">最初のページを作成してチームに共有しましょう。</p>
+        <div class="empty-action"><button class="btn btn-primary">ページを作成</button></div>
+      </div>
+    </div>
+
+    <div class="column col-6 col-sm-12" id="contact">
+      <h2 class="h4">お問い合わせ</h2>
+      <form class="panel">
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label" for="s-name">お名前</label>
+            <input class="form-input" type="text" id="s-name" placeholder="山田 太郎">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="s-mail">メールアドレス</label>
+            <input class="form-input" type="email" id="s-mail" placeholder="work@example.com">
+            <p class="form-input-hint">確認メールをお送りします。</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="s-plan">検討中のプラン</label>
+            <select class="form-select" id="s-plan"><option>Free</option><option selected>Team</option><option>Enterprise</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="s-msg">ご相談内容</label>
+            <textarea class="form-input" id="s-msg" rows="4" placeholder="導入検討中です…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-switch">
+              <input type="checkbox" checked><i class="form-icon"></i> お知らせを受け取る
+            </label>
+            <label class="form-checkbox">
+              <input type="checkbox"><i class="form-icon"></i> 利用規約に同意します
+            </label>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-block" type="button"
+                  data-tooltip="ツールチップも属性1つ（CSSのみ）" >送信する</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ▼ 特徴まとめ -->
+  <section>
+    <h2 class="h4">Spectre.css の特徴</h2>
+    <div class="columns">
+      <div class="column col-6 col-sm-12">
+        <div class="toast toast-success">
+          <p class="text-bold">👍 長所</p>
+          <ul class="text-small">
+            <li><strong>とにかく軽い</strong>（gzip後 約9KB）。読み込みコストがほぼ気にならない</li>
+            <li>JavaScriptゼロ。アコーディオン・モーダル・タブまでCSSだけで開閉する</li>
+            <li>アイコンもCSSで描画されるため、フォントやSVGの追加読み込みが不要</li>
+            <li>empty state・tile・avatar・meter など、実務で欲しい小物が一通り揃う</li>
+            <li>装飾が控えめで、独自デザインの土台にしやすい</li>
+          </ul>
+        </div>
+      </div>
+      <div class="column col-6 col-sm-12">
+        <div class="toast toast-warning">
+          <p class="text-bold">⚠️ 短所・注意点</p>
+          <ul class="text-small">
+            <li><strong>公式リポジトリの更新が長く止まっている</strong>（新規採用時は要検討）</li>
+            <li>日本語情報が非常に少ない</li>
+            <li>ダークモードは標準では用意されておらず、自分で変数を上書きする必要がある</li>
+            <li>大規模サイト向けの複雑なコンポーネントは持たない</li>
+            <li>レスポンシブナビの開閉など、動きのある部分は自作になる</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <p class="text-bold">向いているケース</p>
+        <p class="text-small">社内ダッシュボード、管理画面、小規模サイト、ページ速度を落としたくない場面。
+          「Bootstrapは大げさだが、素のCSSは書きたくない」という中間の要求にちょうど収まります。</p>
+        <p class="text-bold mt-2">CDNの書き方</p>
+        <pre class="code" data-lang="HTML"><code>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre.min.css"&gt;
+&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre-exp.min.css"&gt;
+&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@0.5.9/dist/spectre-icons.min.css"&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ▼ 他フレームワーク -->
+  <section>
+    <h3 class="h5">他のフレームワークで見る</h3>
+    <a class="btn btn-sm" href="index.html">比較トップ</a>
+    <a class="btn btn-sm" href="bootstrap.html">Bootstrap</a>
+    <a class="btn btn-sm" href="tailwind.html">Tailwind</a>
+    <a class="btn btn-sm" href="bulma.html">Bulma</a>
+    <a class="btn btn-sm" href="foundation.html">Foundation</a>
+    <a class="btn btn-sm" href="uikit.html">UIkit</a>
+    <a class="btn btn-sm" href="materialize.html">Materialize</a>
+    <a class="btn btn-sm" href="fomantic-ui.html">Fomantic UI</a>
+    <a class="btn btn-sm" href="pico.html">Pico.css</a>
+    <a class="btn btn-sm" href="open-props.html">Open Props</a>
+  </section>
+</div>
+
+<footer class="text-center text-gray text-small p-2" style="border-top:1px solid #e7e9ed">
+  Aurora Notes は比較用の架空サービスです。 / Built with Spectre.css 0.5.9
+</footer>
+
+<!-- ▼ モーダル：:target セレクタで開くのでJS不要 -->
+<div class="modal" id="trialModal">
+  <a href="#" class="modal-overlay" aria-label="Close"></a>
+  <div class="modal-container">
+    <div class="modal-header">
+      <a href="#" class="btn btn-clear float-right" aria-label="Close"></a>
+      <div class="modal-title h5">無料トライアル</div>
+    </div>
+    <div class="modal-body">
+      <p>クレジットカード不要で14日間、Teamプランの全機能をお試しいただけます。</p>
+      <input class="form-input" type="email" placeholder="work@example.com">
+    </div>
+    <div class="modal-footer">
+      <a href="#" class="btn">閉じる</a>
+      <a href="#" class="btn btn-primary">開始する</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
