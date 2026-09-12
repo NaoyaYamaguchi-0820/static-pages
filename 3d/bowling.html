@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ボウリング ｜ 3Dあそび</title>
+<meta name="description" content="スワイプでボールをころがす3Dボウリング。みぞにガードがあるので、かならずピンまでとどきます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B3%3C/text%3E%3C/svg%3E">
+<style>
+  body { background: #141a30; }
+  #board {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 30;
+    background: rgba(255,255,255,.88); color: #43506f; border-radius: 18px;
+    padding: 8px 16px; font-size: 18px; font-weight: 800; text-align: center;
+    box-shadow: 0 2px 0 rgba(0,0,0,.14); pointer-events: none; line-height: 1.3;
+  }
+  #board b { font-size: 26px; color: #e8613c; font-variant-numeric: tabular-nums; }
+  #gauge {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(62px, calc(env(safe-area-inset-bottom) + 62px));
+    z-index: 20; width: min(260px, 62vw); height: 14px; border-radius: 99px;
+    background: rgba(255,255,255,.3); overflow: hidden; opacity: 0; transition: opacity .15s ease;
+  }
+  #gauge.on { opacity: 1; }
+  #fill { position: absolute; inset: 0 100% 0 0; background: linear-gradient(90deg, #7fe0a3, #ffd166 55%, #ff7a6b); }
+</style>
+</head>
+<body>
+<div id="board">たおしたピン<br><b id="pins">0</b></div>
+<div id="gauge"><div id="fill"></div></div>
+
+<script type="module">
+import { boot, makeStage, addLights, makeSound, addHomeButton, addSoundButton, addHint, addCheer, confetti, rand }
+  from './common.js';
+
+const { THREE, CANNON } = await boot({ physics: true, mark: '🎳' });
+
+// ---------------------------------------------------------------
+// 寸法（単位: m。こどもが遊びやすいようレーンは実物より短くしてある）
+// ---------------------------------------------------------------
+const LANE_W = 1.44;
+const LANE_FROM = 5.4;    // 手前のはし
+const LANE_TO = -5.6;     // おくのはし
+const BALL_R = 0.11;
+const PIN_R = 0.055;
+const PIN_H = 0.38;
+const START = new THREE.Vector3(0, BALL_R, 4.6);
+const MIN_SPEED = 6.5, MAX_SPEED = 14.5;
+
+const PORTRAIT = window.innerHeight > window.innerWidth;
+const stage = makeStage(THREE, { bg: '#141a30', fog: { near: 14, far: 34 }, fov: PORTRAIT ? 62 : 50 });
+const { scene, camera, renderer } = stage;
+addLights(THREE, scene, { sky: '#dfe9ff', ground: '#3a2a1c', hemi: 1.0, sun: 2.4, from: [3, 9, 6], at: [0, 0.3, -2], span: 9 });
+
+const sound = makeSound();
+addHomeButton('index.html');
+addSoundButton(sound);
+const hint = addHint('うえに スワイプして ボールをころがそう');
+const cheer = addCheer();
+const pinsEl = document.getElementById('pins');
+const gaugeEl = document.getElementById('gauge');
+const fillEl = document.getElementById('fill');
+
+// ---------------------------------------------------------------
+// 物理世界
+// ---------------------------------------------------------------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 14;
+world.defaultContactMaterial.friction = 0.3;
+world.defaultContactMaterial.restitution = 0.2;
+
+const mBall = new CANNON.Material('ball');
+const mPin = new CANNON.Material('pin');
+const mLane = new CANNON.Material('lane');
+world.addContactMaterial(new CANNON.ContactMaterial(mBall, mLane, { friction: 0.06, restitution: 0.04 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mPin, mLane, { friction: 0.32, restitution: 0.1 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mBall, mPin, { friction: 0.2, restitution: 0.3 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mPin, mPin, { friction: 0.22, restitution: 0.25 }));
+
+// ---------------------------------------------------------------
+// レーン
+// ---------------------------------------------------------------
+const laneLen = LANE_FROM - LANE_TO;
+const laneMid = (LANE_FROM + LANE_TO) / 2;
+
+const lane = new THREE.Mesh(
+  new THREE.BoxGeometry(LANE_W, 0.2, laneLen),
+  new THREE.MeshStandardMaterial({ color: '#c79457', roughness: 0.35, metalness: 0.05 })
+);
+lane.position.set(0, -0.1, laneMid);
+lane.receiveShadow = true;
+scene.add(lane);
+
+const laneBody = new CANNON.Body({
+  mass: 0, material: mLane,
+  shape: new CANNON.Box(new CANNON.Vec3(LANE_W / 2, 0.1, laneLen / 2)),
+});
+laneBody.position.set(0, -0.1, laneMid);
+world.addBody(laneBody);
+
+// みぞガード。小さな子でもかならずピンまでとどく
+const guardMat = new THREE.MeshStandardMaterial({ color: '#5566b8', roughness: 0.5 });
+for (const sx of [-1, 1]) {
+  const g = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, laneLen), guardMat);
+  g.position.set(sx * (LANE_W / 2 + 0.06), 0.03, laneMid);
+  g.castShadow = true; g.receiveShadow = true;
+  scene.add(g);
+  const b = new CANNON.Body({
+    mass: 0, material: mLane,
+    shape: new CANNON.Box(new CANNON.Vec3(0.06, 0.13, laneLen / 2)),
+  });
+  b.position.set(sx * (LANE_W / 2 + 0.06), 0.03, laneMid);
+  world.addBody(b);
+}
+
+// レーンのまわりの ゆか（レーンが宙にうかんで見えないように）
+{
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(30, 34),
+    new THREE.MeshStandardMaterial({ color: '#242b52', roughness: 1 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, -0.2, laneMid);
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// おくのかべ（ピンが飛んでいかないように）
+{
+  const wall = new THREE.Mesh(
+    new THREE.BoxGeometry(LANE_W + 1.2, 1.4, 0.2),
+    new THREE.MeshStandardMaterial({ color: '#2b3260', roughness: 0.9 })
+  );
+  wall.position.set(0, 0.7, LANE_TO - 0.1);
+  scene.add(wall);
+  // おくのかざりかべ（背景がまっくらにならないように）
+  const back = new THREE.Mesh(
+    new THREE.PlaneGeometry(24, 9),
+    new THREE.MeshStandardMaterial({ color: '#3a4480', roughness: 1 })
+  );
+  back.position.set(0, 4.4, LANE_TO - 1.2);
+  scene.add(back);
+  for (let i = 0; i < 7; i++) {
+    const dot = new THREE.Mesh(
+      new THREE.CircleGeometry(0.42, 20),
+      new THREE.MeshStandardMaterial({ color: ['#ff8fa3','#ffd166','#8ecae6','#95d5b2','#cdb4db'][i % 5], roughness: 1 })
+    );
+    dot.position.set(-6.6 + i * 2.2, 3.2 + (i % 2) * 1.5, LANE_TO - 1.1);
+    scene.add(dot);
+  }
+  const b = new CANNON.Body({ mass: 0, material: mLane, shape: new CANNON.Box(new CANNON.Vec3((LANE_W + 1.2) / 2, 0.7, 0.1)) });
+  b.position.set(0, 0.7, LANE_TO - 0.1);
+  world.addBody(b);
+}
+
+// ---------------------------------------------------------------
+// ピン
+// ---------------------------------------------------------------
+const pinProfile = [
+  [0.000, 0.00], [0.050, 0.00], [0.054, 0.03], [0.046, 0.10], [0.032, 0.18],
+  [0.029, 0.23], [0.037, 0.28], [0.035, 0.32], [0.023, 0.36], [0.000, 0.38],
+].map(([x, y]) => new THREE.Vector2(x, y));
+const pinGeo = new THREE.LatheGeometry(pinProfile, 22);
+pinGeo.translate(0, -PIN_H / 2, 0);
+const pinMat = new THREE.MeshStandardMaterial({ color: '#fdf6ec', roughness: 0.4 });
+const bandMat = new THREE.MeshStandardMaterial({ color: '#e8493c', roughness: 0.5 });
+
+// 3角形にならべる（まん中の間かくは実物よりせまめ＝たおれやすい）
+const GAP = 0.27;
+const ROW = 0.24;
+const PIN_Z = -4.0;
+const layout = [];
+for (let row = 0; row < 4; row++) {
+  for (let i = 0; i <= row; i++) {
+    layout.push([(i - row / 2) * GAP, PIN_Z - row * ROW]);
+  }
+}
+
+const pins = layout.map(([x, z]) => {
+  const g = new THREE.Group();
+  const body3 = new THREE.Mesh(pinGeo, pinMat);
+  body3.castShadow = true;
+  g.add(body3);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.03, 16), bandMat);
+  band.position.y = 0.06;
+  g.add(band);
+  scene.add(g);
+
+  const b = new CANNON.Body({
+    mass: 0.5, material: mPin,
+    shape: new CANNON.Cylinder(PIN_R * 0.85, PIN_R, PIN_H, 12),
+    linearDamping: 0.02, angularDamping: 0.08,
+  });
+  b.position.set(x, PIN_H / 2, z);
+  world.addBody(b);
+  return { g, b, home: new CANNON.Vec3(x, PIN_H / 2, z), down: false };
+});
+
+// ---------------------------------------------------------------
+// ボール
+// ---------------------------------------------------------------
+const ballMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(BALL_R, 32, 24),
+  new THREE.MeshStandardMaterial({ color: '#2fa8e0', roughness: 0.18, metalness: 0.2 })
+);
+ballMesh.castShadow = true;
+scene.add(ballMesh);
+// ゆびあな（回っているのが見えるように）
+for (let i = 0; i < 3; i++) {
+  const h = new THREE.Mesh(
+    new THREE.SphereGeometry(0.018, 10, 8),
+    new THREE.MeshStandardMaterial({ color: '#0d3350', roughness: 0.9 })
+  );
+  const a = (i / 3) * Math.PI * 2;
+  h.position.set(Math.cos(a) * 0.045, BALL_R * 0.93, Math.sin(a) * 0.045);
+  ballMesh.add(h);
+}
+
+const ballBody = new CANNON.Body({
+  mass: 3, material: mBall,
+  shape: new CANNON.Sphere(BALL_R),
+  linearDamping: 0.012, angularDamping: 0.3,
+});
+world.addBody(ballBody);
+
+let rolling = false;
+let rollTime = 0;
+let counted = false;
+let knocked = 0;
+
+function holdBall() {
+  ballBody.position.set(START.x, START.y, START.z);
+  ballBody.velocity.setZero();
+  ballBody.angularVelocity.setZero();
+  ballBody.force.setZero();
+  ballBody.torque.setZero();
+}
+
+function resetPins() {
+  for (const p of pins) {
+    p.b.position.copy(p.home);
+    p.b.quaternion.set(0, 0, 0, 1);
+    p.b.velocity.setZero();
+    p.b.angularVelocity.setZero();
+    p.b.force.setZero();
+    p.b.torque.setZero();
+    p.b.wakeUp();
+    p.down = false;
+  }
+}
+
+function newFrame() {
+  rolling = false;
+  rollTime = 0;
+  counted = false;
+  holdBall();
+  resetPins();
+  knocked = 0;
+  pinsEl.textContent = '0';
+}
+newFrame();
+
+// たおれたかどうかは、ピンの「うえ向き」がどれだけ傾いたかで見る
+const upVec = new CANNON.Vec3(0, 1, 0);
+const tmpUp = new CANNON.Vec3();
+function isDown(p) {
+  p.b.quaternion.vmult(upVec, tmpUp);
+  return tmpUp.y < 0.66 || p.b.position.y < PIN_H * 0.3;
+}
+
+function countPins() {
+  let n = 0;
+  for (const p of pins) {
+    if (isDown(p)) { p.down = true; n++; }
+  }
+  knocked = n;
+  pinsEl.textContent = String(n);
+  if (n === 10) {
+    cheer('ストライク！', '#ffd166');
+    confetti(120);
+    sound.fanfare();
+  } else if (n >= 7) {
+    cheer('ナイス！', '#8ef5c0');
+    confetti(50);
+    sound.arp([523, 659, 784], { gap: 0.08, dur: 0.4 });
+  } else if (n > 0) {
+    cheer(n + 'ぽん！', '#9ed8ff');
+    sound.arp([392, 523], { gap: 0.09, dur: 0.35 });
+  } else {
+    hint.set('もういちど やってみよう', 2600);
+  }
+}
+
+// ピンどうしがぶつかった音
+let lastClack = 0;
+for (const p of pins) {
+  p.b.addEventListener('collide', (e) => {
+    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+    const now = performance.now();
+    if (v < 1.2 || now - lastClack < 45) return;
+    lastClack = now;
+    sound.noise({ dur: 0.09, gain: Math.min(0.2, v * 0.03), cut: 3000 });
+    sound.tone({ freq: rand(320, 520), type: 'triangle', dur: 0.12, gain: Math.min(0.14, v * 0.02) });
+  });
+}
+
+// ---------------------------------------------------------------
+// なげる
+// ---------------------------------------------------------------
+let dragging = false, startX = 0, startY = 0, power = 0, aim = 0;
+
+function showGauge(on) { gaugeEl.classList.toggle('on', on); }
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.target.closest && e.target.closest('button')) return;
+  e.preventDefault();
+  sound.unlock();
+  if (rolling) return;
+  dragging = true;
+  startX = e.clientX; startY = e.clientY;
+  power = 0; aim = 0;
+  showGauge(true);
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dy = startY - e.clientY;
+  const dx = e.clientX - startX;
+  power = Math.min(Math.max(dy / (window.innerHeight * 0.3), 0), 1);
+  aim = Math.min(Math.max(dx / (window.innerWidth * 0.35), -1), 1);
+  fillEl.style.right = ((1 - power) * 100) + '%';
+  // ねらいに合わせてボールを少し横にずらす（どっちに行くか見えるように）
+  ballBody.position.x = aim * 0.42;
+  ballMesh.position.x = ballBody.position.x;
+});
+
+function endDrag(e) {
+  if (!dragging) return;
+  dragging = false;
+  showGauge(false);
+  try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (err) { /* 解放ずみ */ }
+  if (power < 0.08) { holdBall(); return; }
+  throwBall();
+}
+renderer.domElement.addEventListener('pointerup', endDrag);
+renderer.domElement.addEventListener('pointercancel', endDrag);
+
+function throwBall() {
+  const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
+  ballBody.wakeUp();
+  ballBody.velocity.set(-aim * 1.1, 0, -speed);
+  ballBody.angularVelocity.set(-speed / BALL_R * 0.35, aim * 5, 0);
+  rolling = true;
+  rollTime = 0;
+  counted = false;
+  sound.tone({ freq: 140, type: 'sine', dur: 0.45, gain: 0.16, sweep: 1.7 });
+  hint.hide();
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !rolling) { e.preventDefault(); sound.unlock(); power = 0.6; aim = 0; throwBall(); }
+});
+
+// ---------------------------------------------------------------
+// うごかす
+// ---------------------------------------------------------------
+const FIXED = 1 / 240;
+const camPos = new THREE.Vector3(0, 1.45, 6.6);
+const camLook = new THREE.Vector3(0, 0.35, 0);
+camera.position.copy(camPos);
+
+stage.run((dt) => {
+  if (!rolling) holdBall();
+  world.step(FIXED, dt, 12);
+  if (!rolling) holdBall();
+
+  ballMesh.position.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+  ballMesh.quaternion.set(ballBody.quaternion.x, ballBody.quaternion.y, ballBody.quaternion.z, ballBody.quaternion.w);
+  for (const p of pins) {
+    p.g.position.set(p.b.position.x, p.b.position.y, p.b.position.z);
+    p.g.quaternion.set(p.b.quaternion.x, p.b.quaternion.y, p.b.quaternion.z, p.b.quaternion.w);
+  }
+
+  if (rolling) {
+    rollTime += dt;
+    const passed = ballBody.position.z < PIN_Z - 1.2;
+    const stopped = ballBody.velocity.length() < 0.6;
+    if (!counted && (passed || stopped || rollTime > 7)) {
+      counted = true;
+      // ピンがたおれきるのを少し待ってから数える
+      setTimeout(() => { countPins(); setTimeout(newFrame, 2200); }, 1100);
+    }
+  }
+
+  // ボールを追いかけるカメラ
+  const z = rolling ? Math.max(ballBody.position.z + 2.2, LANE_TO + 3.4) : 6.6;
+  const look = rolling ? Math.max(ballBody.position.z - 1.6, PIN_Z - 0.6) : 0;
+  camPos.set(ballBody.position.x * 0.25, 1.45, z);
+  camLook.set(ballBody.position.x * 0.3, 0.35, look);
+  const k = 1 - Math.exp(-dt * 3.5);
+  camera.position.lerp(camPos, k);
+  camera.lookAt(camLook);
+});
+</script>
+</body>
+</html>
