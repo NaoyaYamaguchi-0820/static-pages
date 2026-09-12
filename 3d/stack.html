@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>つみつみタワー ｜ 3Dあそび</title>
+<meta name="description" content="うごくブロックをタップでつみあげる3Dゲーム。しっぱいしても終わらないので、小さな子でも遊べます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%97%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  body { background: #27305c; }
+  #count {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 30;
+    background: rgba(255,255,255,.88); color: #43506f; border-radius: 99px;
+    padding: 9px 18px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 0 rgba(0,0,0,.14); pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="count">0</div>
+
+<script type="module">
+import { boot, makeStage, addLights, makeSound, addHomeButton, addSoundButton, addHint, addCheer, confetti, SCALE }
+  from './common.js';
+
+const { THREE } = await boot({ mark: '🏗️' });
+
+// ---------------------------------------------------------------
+// したく
+// ---------------------------------------------------------------
+const BASE = 3.2;      // ブロックの一辺
+const H = 0.62;        // ブロックの高さ
+const MIN_SIZE = 1.0;  // これより小さくはしない（ずっと遊べるように）
+const OVER = 1.1;      // ブロックの端からどれだけはみ出して往復するか
+const MISS_LIMIT = 0.12; // これ以下しか重なっていなければ「のせられなかった」
+
+// たてに長い画面でも塔がはみ出さないよう、画面の形で画角を変える
+const PORTRAIT = window.innerHeight > window.innerWidth;
+const stage = makeStage(THREE, { bg: '#27305c', fog: { near: 24, far: 64 }, fov: PORTRAIT ? 58 : 48 });
+const { scene, camera, renderer } = stage;
+addLights(THREE, scene, { from: [7, 14, 9], at: [0, 2, 0], span: 12, sun: 2.6 });
+
+const sound = makeSound();
+addHomeButton('index.html');
+addSoundButton(sound);
+const hint = addHint('うごくブロックをタップしてつみあげよう');
+const cheer = addCheer();
+const countEl = document.getElementById('count');
+
+// 足もとの台
+const floor = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9, 0.6, 48),
+  new THREE.MeshStandardMaterial({ color: '#3b4880', roughness: 0.9 })
+);
+floor.position.y = -0.3;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const tower = new THREE.Group();
+scene.add(tower);
+
+// ---------------------------------------------------------------
+// ブロック
+// ---------------------------------------------------------------
+const boxGeo = new THREE.BoxGeometry(1, 1, 1); // 大きさは scale でつける
+let hue = 0.56;
+
+function colorFor(level) {
+  // 少しずつ色がうつろっていく。どの段もあかるくてきれいに見える範囲に収める
+  hue = (0.56 + level * 0.045) % 1;
+  return new THREE.Color().setHSL(hue, 0.72, 0.56);
+}
+
+function makeBlock(level) {
+  const m = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({
+    color: colorFor(level), roughness: 0.55, metalness: 0.02,
+  }));
+  m.castShadow = true;
+  m.receiveShadow = true;
+  tower.add(m);
+  return m;
+}
+
+/** { mesh, w, d, x, z, y } でブロック1つ分をあらわす */
+function place(mesh, x, y, z, w, d) {
+  mesh.position.set(x, y, z);
+  mesh.scale.set(w, H, d);
+}
+
+const blocks = [];   // つみあがったもの
+const debris = [];   // 切れ落ちたかけら
+let moving = null;   // いまうごいているブロック
+let axis = 'x';
+let dir = 1;
+let range = 2.7;
+let level = 0;
+let perfectRun = 0;
+let busy = false;    // 落下アニメ中の多重タップよけ
+
+// 土台（1段目）
+{
+  const base = makeBlock(0);
+  place(base, 0, H / 2, 0, BASE, BASE);
+  blocks.push({ mesh: base, w: BASE, d: BASE, x: 0, z: 0, y: H / 2 });
+}
+
+function top() { return blocks[blocks.length - 1]; }
+
+function spawn() {
+  const t = top();
+  level = blocks.length;
+  axis = level % 2 === 1 ? 'x' : 'z';
+  dir = Math.random() < 0.5 ? 1 : -1;
+  const mesh = makeBlock(level);
+  const y = t.y + H;
+  // 往復する幅はいまのブロックの大きさに合わせる。いつでも「のる」余地を残す
+  range = (axis === 'x' ? t.w : t.d) / 2 + OVER;
+  const x = axis === 'x' ? t.x - range * dir : t.x;
+  const z = axis === 'z' ? t.z - range * dir : t.z;
+  place(mesh, x, y, z, t.w, t.d);
+  moving = { mesh, w: t.w, d: t.d, x, z, y };
+}
+spawn();
+
+/** 切れたかけらを落とす */
+function dropPiece(x, y, z, w, d, color, push) {
+  const m = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+  place(m, x, y, z, w, d);
+  m.castShadow = true;
+  tower.add(m);
+  debris.push({
+    mesh: m,
+    vy: 1.2,
+    vx: axis === 'x' ? push * 2.2 : 0,
+    vz: axis === 'z' ? push * 2.2 : 0,
+    spin: (Math.random() - 0.5) * 5,
+  });
+}
+
+// ---------------------------------------------------------------
+// のせる
+// ---------------------------------------------------------------
+function drop() {
+  if (busy || !moving) return;
+  sound.unlock();
+
+  const t = top();
+  const size = axis === 'x' ? t.w : t.d;
+  const delta = (axis === 'x' ? moving.x - t.x : moving.z - t.z);
+  const overlap = size - Math.abs(delta);
+
+  if (overlap <= MISS_LIMIT) {
+    // のせられなかった。おなじ大きさでもう一度（ゲームオーバーにはしない）
+    busy = true;
+    perfectRun = 0;
+    const c = moving.mesh.material.color.clone();
+    tower.remove(moving.mesh);
+    dropPiece(moving.x, moving.y, moving.z, moving.w, moving.d, c, Math.sign(delta) || 1);
+    moving = null;
+    sound.tone({ freq: 240, type: 'triangle', dur: 0.35, gain: 0.16, sweep: 0.55 });
+    hint.set('つぎはうまくのるよ！', 2400);
+    setTimeout(() => { busy = false; spawn(); }, 420);
+    return;
+  }
+
+  const perfect = Math.abs(delta) < 0.16;
+  let nx = moving.x, nz = moving.z, nw = moving.w, nd = moving.d;
+
+  if (perfect) {
+    // ほぼぴったり。大きさをへらさずにそろえてあげる
+    nx = t.x; nz = t.z; nw = t.w; nd = t.d;
+    perfectRun++;
+  } else {
+    perfectRun = 0;
+    const cutColor = moving.mesh.material.color.clone();
+    if (axis === 'x') {
+      nw = Math.max(overlap, MIN_SIZE);
+      nx = t.x + delta / 2;
+      const cutW = Math.abs(delta);
+      const cutX = nx + Math.sign(delta) * (overlap + cutW) / 2;
+      dropPiece(cutX, moving.y, nz, cutW, nd, cutColor, Math.sign(delta));
+    } else {
+      nd = Math.max(overlap, MIN_SIZE);
+      nz = t.z + delta / 2;
+      const cutD = Math.abs(delta);
+      const cutZ = nz + Math.sign(delta) * (overlap + cutD) / 2;
+      dropPiece(nx, moving.y, cutZ, nw, cutD, cutColor, Math.sign(delta));
+    }
+  }
+
+  place(moving.mesh, nx, moving.y, nz, nw, nd);
+  blocks.push({ mesh: moving.mesh, w: nw, d: nd, x: nx, z: nz, y: moving.y });
+  moving = null;
+
+  // 高くなるほど音もあがっていく
+  const n = blocks.length - 1;
+  sound.tone({ freq: SCALE[Math.min(n, SCALE.length - 1)], type: 'triangle', dur: 0.5, gain: 0.22 });
+  if (perfect) {
+    sound.tone({ freq: SCALE[Math.min(n, SCALE.length - 1)] * 2, type: 'sine', dur: 0.4, gain: 0.14, delay: 0.05 });
+    cheer('ぴったり！', '#ffe066');
+  }
+  countEl.textContent = String(n);
+
+  if (perfectRun >= 3) {
+    perfectRun = 0;
+    cheer('すごい！', '#8ef5c0');
+    confetti(40);
+    sound.fanfare();
+  } else if (n > 0 && n % 5 === 0) {
+    cheer(n + 'だん！', '#ffd166');
+    confetti(50);
+    sound.fanfare();
+  }
+
+  if (n >= 30) {
+    // てっぺんまで行ったらおいわいして、そっと最初から
+    cheer('てっぺん！', '#ff9ecd');
+    confetti(120);
+    setTimeout(reset, 1500);
+    return;
+  }
+  spawn();
+}
+
+function reset() {
+  for (const b of blocks.slice(1)) tower.remove(b.mesh);
+  blocks.length = 1;
+  countEl.textContent = '0';
+  hint.set('もういちど つんでみよう', 3000);
+  if (!moving) spawn();
+}
+
+// ---------------------------------------------------------------
+// そうさ（画面のどこでもタップでのせる。ボタンの上は除く）
+// ---------------------------------------------------------------
+function onTap(e) {
+  if (e.target.closest && e.target.closest('button')) return;
+  e.preventDefault();
+  drop();
+}
+renderer.domElement.addEventListener('pointerdown', onTap);
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); drop(); }
+});
+
+// ---------------------------------------------------------------
+// うごかす
+// ---------------------------------------------------------------
+const camGoal = new THREE.Vector3();
+const lookGoal = new THREE.Vector3();
+
+stage.run((dt) => {
+  if (moving) {
+    // 高くなるほど少しだけ速くなる（上限つき）
+    const speed = Math.min(2.2 + blocks.length * 0.07, 4.4);
+    const v = speed * dir * dt;
+    const t2 = top();
+    if (axis === 'x') {
+      moving.x += v;
+      if (moving.x > t2.x + range) { moving.x = t2.x + range; dir = -1; }
+      if (moving.x < t2.x - range) { moving.x = t2.x - range; dir = 1; }
+    } else {
+      moving.z += v;
+      if (moving.z > t2.z + range) { moving.z = t2.z + range; dir = -1; }
+      if (moving.z < t2.z - range) { moving.z = t2.z - range; dir = 1; }
+    }
+    moving.mesh.position.set(moving.x, moving.y, moving.z);
+  }
+
+  // 落ちたかけら
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const p = debris[i];
+    p.vy -= 16 * dt;
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.mesh.rotation.z += p.spin * dt;
+    p.mesh.rotation.x += p.spin * 0.6 * dt;
+    if (p.mesh.position.y < -14) { tower.remove(p.mesh); debris.splice(i, 1); }
+  }
+
+  // つみあがるほどカメラも上がっていく
+  const topY = top().y;
+  // 塔がよこにずれていっても、画面のまんなかからはずれないように少しだけ追う
+  const t = top();
+  camGoal.set(6.4 + t.x * 0.45, topY + 4.0, 6.4 + t.z * 0.45);
+  lookGoal.set(t.x * 0.45, Math.max(topY - 1.2, 0.6), t.z * 0.45);
+  const k = 1 - Math.exp(-dt * 3.2);
+  camera.position.lerp(camGoal, k);
+  camera.lookAt(lookGoal);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ふうせんパチン ｜ 3Dあそび</title>
+<meta name="description" content="そらに浮かぶ3Dのふうせんを、さわるとパチンとはじける。しっぱいのないあそびです。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%88%3C/text%3E%3C/svg%3E">
+<style>
+  body { background: #a8d8f0; }
+  #count {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 30;
+    background: rgba(255,255,255,.88); color: #3f6d8a; border-radius: 99px;
+    padding: 9px 18px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 0 rgba(0,0,0,.1); pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="count">🎈 0</div>
+
+<script type="module">
+import { boot, makeStage, addLights, makePicker, makeSound, addHomeButton, addSoundButton, addHint, addCheer, confetti, SCALE, rand, pick }
+  from './common.js';
+
+const { THREE } = await boot({ mark: '🎈' });
+
+const stage = makeStage(THREE, { bg: '#a8d8f0', fog: { color: '#c7e6f7', near: 26, far: 60 }, fov: 55 });
+const { scene, camera, renderer } = stage;
+camera.position.set(0, 2.2, 12.5);
+camera.lookAt(0, 2.2, 0);
+
+addLights(THREE, scene, { sky: '#ffffff', ground: '#8fc7e8', hemi: 1.5, sun: 2.2, from: [5, 12, 10], at: [0, 3, 0], span: 14 });
+
+const sound = makeSound();
+addHomeButton('index.html');
+addSoundButton(sound);
+const hint = addHint('ふうせんを さわってみよう');
+const cheer = addCheer();
+const countEl = document.getElementById('count');
+const pickAt = makePicker(THREE, camera, renderer.domElement);
+
+// ---------------------------------------------------------------
+// くも（うしろでゆっくり流れる）
+// ---------------------------------------------------------------
+const clouds = [];
+{
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, metalness: 0 });
+  for (let i = 0; i < 7; i++) {
+    const g = new THREE.Group();
+    const puffs = 3 + Math.floor(Math.random() * 3);
+    for (let j = 0; j < puffs; j++) {
+      const r = rand(0.8, 1.5);
+      const s = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
+      s.position.set(rand(-1.6, 1.6) * j * 0.6, rand(-0.25, 0.25), rand(-0.3, 0.3));
+      g.add(s);
+    }
+    g.position.set(rand(-16, 16), rand(5.5, 10.5), rand(-22, -12));
+    scene.add(g);
+    clouds.push({ g, speed: rand(0.18, 0.5) });
+  }
+}
+
+// ---------------------------------------------------------------
+// ふうせん
+// ---------------------------------------------------------------
+const COLORS = ['#ff7a8a', '#ffc93c', '#6fd1f5', '#7fe0a3', '#c39bf0', '#ffa06b', '#ff8fd0'];
+const FACES = ['😀', '🐱', '🐸', '🐰', '⭐', '🌈', '🍓', '🐤'];
+
+const balloonGeo = new THREE.SphereGeometry(1, 22, 16);
+const knotGeo = new THREE.ConeGeometry(0.16, 0.3, 10);
+const stringGeo = new THREE.CylinderGeometry(0.012, 0.012, 1.6, 5);
+const stringMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 });
+
+const balloons = [];
+const bits = [];      // はじけたかけら
+let popped = 0;
+
+function spawnBalloon() {
+  const size = rand(0.55, 0.95);
+  const color = pick(COLORS);
+  const g = new THREE.Group();
+
+  const body = new THREE.Mesh(balloonGeo, new THREE.MeshStandardMaterial({
+    color, roughness: 0.32, metalness: 0.05,
+  }));
+  body.scale.set(size, size * 1.18, size);
+  body.castShadow = true;
+  g.add(body);
+
+  const knot = new THREE.Mesh(knotGeo, body.material);
+  knot.position.y = -size * 1.18;
+  knot.rotation.x = Math.PI;
+  knot.scale.setScalar(size);
+  g.add(knot);
+
+  const str = new THREE.Mesh(stringGeo, stringMat);
+  str.position.y = -size * 1.18 - 0.85 * size;
+  str.scale.set(1, size, 1);
+  g.add(str);
+
+  // 小さい子でもさわりやすいように、見た目より大きい当たり判定をつける
+  const hit = new THREE.Mesh(balloonGeo, new THREE.MeshBasicMaterial({ visible: false }));
+  hit.scale.setScalar(size * 1.45);
+  g.add(hit);
+
+  g.position.set(rand(-6.5, 6.5), rand(-6, -3.5), rand(-3.5, 2.5));
+  scene.add(g);
+
+  const b = {
+    g, body, hit, size, color,
+    speed: rand(0.85, 1.7),
+    sway: rand(0.5, 1.3),
+    phase: rand(0, Math.PI * 2),
+    face: pick(FACES),
+    alive: true,
+  };
+  hit.userData.balloon = b;
+  balloons.push(b);
+  return b;
+}
+
+// 最初から画面いっぱいに浮かんでいる状態にする（下がさびしくならないように）
+const FIRST = 14;
+for (let i = 0; i < FIRST; i++) {
+  const b = spawnBalloon();
+  b.g.position.y = -5 + (13.5 * i) / FIRST + rand(-0.5, 0.5);
+}
+
+// ---------------------------------------------------------------
+// はじける
+// ---------------------------------------------------------------
+const bitGeo = new THREE.SphereGeometry(0.1, 8, 6);
+
+function popBalloon(b) {
+  if (!b.alive) return;
+  b.alive = false;
+  sound.unlock();
+
+  const p = b.g.position;
+  for (let i = 0; i < 12; i++) {
+    const m = new THREE.Mesh(bitGeo, new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.5 }));
+    m.position.copy(p);
+    m.scale.setScalar(rand(0.6, 1.5) * b.size);
+    scene.add(m);
+    bits.push({
+      m,
+      vx: rand(-4, 4), vy: rand(-1.5, 4.5), vz: rand(-3, 3),
+      life: 1,
+    });
+  }
+  scene.remove(b.g);
+  balloons.splice(balloons.indexOf(b), 1);
+
+  // 中から絵が飛び出す（画面に重ねる）
+  flyFace(b.face, p);
+
+  sound.noise({ dur: 0.11, gain: 0.22, cut: 2600 });
+  sound.tone({ freq: SCALE[popped % SCALE.length], type: 'triangle', dur: 0.32, gain: 0.2 });
+
+  popped++;
+  countEl.textContent = '🎈 ' + popped;
+  if (popped % 10 === 0) {
+    cheer(popped + 'こ！', '#fff3a0');
+    confetti(50);
+    sound.fanfare();
+  }
+  spawnBalloon();
+}
+
+const faceLayer = document.createElement('div');
+faceLayer.style.cssText = 'position:fixed;inset:0;z-index:22;pointer-events:none;overflow:hidden';
+document.body.appendChild(faceLayer);
+
+const proj = new THREE.Vector3();
+function flyFace(face, pos3) {
+  proj.copy(pos3).project(camera);
+  const x = (proj.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-proj.y * 0.5 + 0.5) * window.innerHeight;
+  const el = document.createElement('div');
+  el.textContent = face;
+  el.style.cssText =
+    'position:absolute;left:' + x + 'px;top:' + y + 'px;font-size:46px;transform:translate(-50%,-50%);' +
+    'font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  faceLayer.appendChild(el);
+  const a = el.animate(
+    [
+      { transform: 'translate(-50%,-50%) scale(.4)', opacity: 1 },
+      { transform: 'translate(-50%,-150%) scale(1.25)', opacity: 0 },
+    ],
+    { duration: 1000, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' }
+  );
+  a.onfinish = () => el.remove();
+}
+
+// ---------------------------------------------------------------
+// そうさ（タップでも、なぞってもはじける）
+// ---------------------------------------------------------------
+function touchAt(clientX, clientY) {
+  const hits = pickAt(clientX, clientY, balloons.map((b) => b.hit), false);
+  if (hits.length) popBalloon(hits[0].object.userData.balloon);
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.target.closest && e.target.closest('button')) return;
+  e.preventDefault();
+  sound.unlock();
+  touchAt(e.clientX, e.clientY);
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (e.pressure > 0 || e.buttons) touchAt(e.clientX, e.clientY);
+});
+
+// ---------------------------------------------------------------
+// うごかす
+// ---------------------------------------------------------------
+stage.run((dt, t) => {
+  for (const b of balloons) {
+    b.g.position.y += b.speed * dt;
+    b.g.position.x += Math.sin(t * b.sway + b.phase) * 0.5 * dt;
+    b.g.rotation.z = Math.sin(t * b.sway + b.phase) * 0.12;
+    if (b.g.position.y > 9.5) {
+      // 上まで行ったら下からまた出てくる
+      b.g.position.y = rand(-7, -4.5);
+      b.g.position.x = rand(-6.5, 6.5);
+    }
+  }
+
+  for (let i = bits.length - 1; i >= 0; i--) {
+    const p = bits[i];
+    p.vy -= 9 * dt;
+    p.m.position.x += p.vx * dt;
+    p.m.position.y += p.vy * dt;
+    p.m.position.z += p.vz * dt;
+    p.life -= dt * 1.3;
+    p.m.scale.multiplyScalar(1 - dt * 1.1);
+    if (p.life <= 0) { scene.remove(p.m); bits.splice(i, 1); }
+  }
+
+  for (const c of clouds) {
+    c.g.position.x += c.speed * dt;
+    if (c.g.position.x > 18) c.g.position.x = -18;
+  }
+});
+</script>
+</body>
+</html>
