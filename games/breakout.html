@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ブロック崩し ｜ ミニゲームセンター</title>
+<meta name="description" content="Canvasで動くブロック崩し。マウス・タッチ・キーボードでパドルを操作し、アイテムを拾って進みます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B1%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 56px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); font-size: .88rem; margin: 0 0 20px; }
+
+  .hud { display: flex; gap: 8px; margin-bottom: 12px; }
+  .score { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; text-align: center; }
+  .score .label { display: block; color: var(--muted); font-size: .68rem; letter-spacing: .08em; }
+  .score .value { display: block; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .stage { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #0b0c1c; touch-action: none; }
+  canvas { display: block; width: 100%; height: auto; }
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center;
+    background: rgba(11,12,28,.82); color: #e8e9f5; padding: 20px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 1.5rem; }
+  .overlay p { margin: 0; color: #a4a7c9; font-size: .88rem; }
+  button.btn {
+    font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0;
+    border-radius: 12px; padding: 10px 20px; cursor: pointer; transition: filter .15s ease;
+  }
+  button.btn:hover { filter: brightness(1.12); }
+  button.btn.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+  .controls { display: flex; gap: 8px; margin-top: 12px; }
+  .controls .btn { flex: 1; }
+
+  .help { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: .85rem; color: var(--muted); }
+  .help b { color: var(--text); }
+  .help ul { margin: 8px 0 0; padding-left: 1.1em; }
+  kbd { display: inline-block; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 7px; margin: 0 1px; font-size: .95em; line-height: 1.5; color: var(--text); }
+  .chip { display: inline-block; width: .8em; height: .8em; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← ミニゲームセンター</a>
+  <h1>ブロック崩し</h1>
+  <p class="lead">ボールを落とさずに全部のブロックを壊しましょう。落ちてくるアイテムで有利になります。</p>
+
+  <div class="hud">
+    <div class="score"><span class="label">SCORE</span><span class="value" id="score">0</span></div>
+    <div class="score"><span class="label">BEST</span><span class="value" id="best">0</span></div>
+    <div class="score"><span class="label">STAGE</span><span class="value" id="stage">1</span></div>
+    <div class="score"><span class="label">LIFE</span><span class="value" id="life">♥♥♥</span></div>
+  </div>
+
+  <div class="stage" id="stageEl">
+    <canvas id="cv" width="480" height="620"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">ブロック崩し</h2>
+      <p id="ovText">パドルを左右に動かしてボールを打ち返します。</p>
+      <div><button class="btn" id="ovBtn">スタート</button></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn ghost" id="pause">一時停止</button>
+    <button class="btn ghost" id="restart">はじめから</button>
+  </div>
+
+  <div class="help">
+    <b>そうさ</b>：マウス／指のドラッグ、または <kbd>←</kbd><kbd>→</kbd> でパドルを移動。<kbd>Space</kbd> でボールを発射・一時停止。
+    <br><b>アイテム</b>（ブロックからまれに落ちます）
+    <ul>
+      <li><span class="chip" style="background:#4ade80"></span>パドルが広くなる</li>
+      <li><span class="chip" style="background:#60a5fa"></span>ボールがゆっくりになる</li>
+      <li><span class="chip" style="background:#f472b6"></span>ボールが増える</li>
+      <li><span class="chip" style="background:#facc15"></span>残機が1つ増える</li>
+      <li><span class="chip" style="background:#f87171"></span>パドルが狭くなる（はずれ）</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'minigames.breakout.best';
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const stageEl = document.getElementById('stage');
+  const lifeEl = document.getElementById('life');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovText = document.getElementById('ovText');
+  const ovBtn = document.getElementById('ovBtn');
+
+  const COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#38bdf8', '#a78bfa'];
+  const ITEMS = [
+    { type: 'wide',  color: '#4ade80', weight: 3 },
+    { type: 'slow',  color: '#60a5fa', weight: 2 },
+    { type: 'multi', color: '#f472b6', weight: 2 },
+    { type: 'life',  color: '#facc15', weight: 1 },
+    { type: 'thin',  color: '#f87171', weight: 2 },
+  ];
+  const TOTAL_WEIGHT = ITEMS.reduce((s, i) => s + i.weight, 0);
+
+  const PADDLE_Y = H - 46;
+  const BASE_PADDLE_W = 96;
+  const BALL_R = 7;
+
+  let best = 0;
+  try { best = Number(localStorage.getItem(KEY)) || 0; } catch (e) {}
+  bestEl.textContent = best;
+
+  const state = {
+    mode: 'title',   // title | ready | playing | paused | over | clear
+    score: 0, stage: 1, life: 3,
+    paddle: { x: W / 2, w: BASE_PADDLE_W, h: 12 },
+    balls: [], bricks: [], items: [], particles: [],
+    speedScale: 1,
+  };
+
+  function makeBricks(level) {
+    const cols = 9;
+    const rows = Math.min(4 + level, 8);
+    const pad = 6, left = 26, top = 70;
+    const bw = (W - left * 2 - pad * (cols - 1)) / cols;
+    const bh = 22;
+    const bricks = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        // ステージが進むと2回当てないと壊れないブロックが混ざる
+        const tough = level >= 2 && r < Math.floor((level - 1) / 2) ? 2 : 1;
+        if (level >= 3 && (r + c) % 7 === 3) continue; // 隙間を作って形に変化を
+        bricks.push({
+          x: left + c * (bw + pad), y: top + r * (bh + pad),
+          w: bw, h: bh, hp: tough, max: tough, color: COLORS[r % COLORS.length],
+        });
+      }
+    }
+    return bricks;
+  }
+
+  function newBall(speedUp = 0) {
+    const speed = (4.2 + speedUp) * state.speedScale;
+    const angle = (-60 + Math.random() * 120) * Math.PI / 180;
+    return { x: state.paddle.x, y: PADDLE_Y - BALL_R - 2, vx: Math.sin(angle) * speed, vy: -Math.cos(angle) * speed, r: BALL_R, stuck: true };
+  }
+
+  function resetStage(level) {
+    state.bricks = makeBricks(level);
+    state.items = [];
+    state.speedScale = 1 + (level - 1) * 0.08;
+    state.paddle.w = BASE_PADDLE_W;
+    state.balls = [newBall()];
+    state.mode = 'ready';
+    updateHud();
+  }
+
+  function startGame() {
+    state.score = 0; state.stage = 1; state.life = 3;
+    state.particles = [];
+    resetStage(1);
+    showOverlay(null);
+  }
+
+  function updateHud() {
+    scoreEl.textContent = state.score;
+    stageEl.textContent = state.stage;
+    lifeEl.textContent = state.life > 0 ? '♥'.repeat(state.life) : '–';
+    if (state.score > best) {
+      best = state.score;
+      bestEl.textContent = best;
+      try { localStorage.setItem(KEY, String(best)); } catch (e) {}
+    }
+  }
+
+  function showOverlay(title, text, btn) {
+    if (title === null) { overlay.hidden = true; return; }
+    ovTitle.textContent = title;
+    ovText.textContent = text;
+    ovBtn.textContent = btn;
+    overlay.hidden = false;
+  }
+
+  function burst(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 2.6;
+      state.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color });
+    }
+  }
+
+  function dropItem(x, y) {
+    let r = Math.random() * TOTAL_WEIGHT;
+    for (const it of ITEMS) {
+      r -= it.weight;
+      if (r <= 0) { state.items.push({ x, y, type: it.type, color: it.color, vy: 2.1 }); return; }
+    }
+  }
+
+  function applyItem(type) {
+    const p = state.paddle;
+    if (type === 'wide')  p.w = Math.min(p.w * 1.35, 210);
+    if (type === 'thin')  p.w = Math.max(p.w * 0.75, 48);
+    if (type === 'slow')  for (const b of state.balls) { b.vx *= 0.78; b.vy *= 0.78; }
+    if (type === 'life')  { state.life = Math.min(state.life + 1, 6); updateHud(); }
+    if (type === 'multi') {
+      const src = state.balls.filter((b) => !b.stuck);
+      const base = src.length ? src : state.balls;
+      for (const b of base.slice(0, 2)) {
+        for (const sign of [-1, 1]) {
+          const sp = Math.hypot(b.vx, b.vy) || 4.4;
+          const ang = Math.atan2(b.vy, b.vx) + sign * 0.5;
+          state.balls.push({ x: b.x, y: b.y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: BALL_R, stuck: false });
+        }
+      }
+    }
+  }
+
+  // ---- 入力 ----
+  const keys = {};
+  addEventListener('keydown', (e) => {
+    if (['ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+    keys[e.key] = true;
+    if (e.key === ' ') {
+      if (state.mode === 'title' || state.mode === 'over' || state.mode === 'clear') startGame();
+      else if (state.mode === 'ready') launch();
+      else if (state.mode === 'playing') togglePause();
+      else if (state.mode === 'paused') togglePause();
+    }
+  });
+  addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  function pointerX(e) {
+    const rect = cv.getBoundingClientRect();
+    return (e.clientX - rect.left) / rect.width * W;
+  }
+  let dragging = false;
+  const stageWrap = document.getElementById('stageEl');
+  stageWrap.addEventListener('pointerdown', (e) => {
+    if (overlay.hidden === false) return;
+    dragging = true;
+    state.paddle.x = pointerX(e);
+    if (state.mode === 'ready') launch();
+  });
+  stageWrap.addEventListener('pointermove', (e) => { if (dragging) state.paddle.x = pointerX(e); });
+  addEventListener('pointerup', () => { dragging = false; });
+
+  function launch() {
+    if (state.mode !== 'ready') return;
+    state.mode = 'playing';
+    for (const b of state.balls) b.stuck = false;
+  }
+  function togglePause() {
+    if (state.mode === 'playing') { state.mode = 'paused'; showOverlay('一時停止', 'スペースキーかボタンで再開します。', '再開'); }
+    else if (state.mode === 'paused') { state.mode = 'playing'; showOverlay(null); }
+  }
+
+  ovBtn.addEventListener('click', () => {
+    if (state.mode === 'paused') togglePause();
+    else if (state.mode === 'clear-wait') { state.mode = 'ready'; showOverlay(null); }
+    else startGame();
+  });
+  document.getElementById('pause').addEventListener('click', togglePause);
+  document.getElementById('restart').addEventListener('click', startGame);
+
+  // ---- 更新 ----
+  function update(dt) {
+    const p = state.paddle;
+    if (keys.ArrowLeft) p.x -= 7 * dt;
+    if (keys.ArrowRight) p.x += 7 * dt;
+    p.x = Math.max(p.w / 2, Math.min(W - p.w / 2, p.x));
+
+    for (const b of state.balls) {
+      if (b.stuck) { b.x = p.x; b.y = PADDLE_Y - b.r - 2; continue; }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx); }
+      if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+      if (b.y - b.r < 0) { b.y = b.r; b.vy = Math.abs(b.vy); }
+
+      // パドル：当たった位置で跳ね返る角度を変える
+      if (b.vy > 0 && b.y + b.r >= PADDLE_Y && b.y - b.r <= PADDLE_Y + p.h &&
+          b.x >= p.x - p.w / 2 - b.r && b.x <= p.x + p.w / 2 + b.r) {
+        let hit = (b.x - p.x) / (p.w / 2);
+        // 真芯すぎると垂直往復で詰まるので、わずかに角度をつける
+        if (Math.abs(hit) < 0.08) hit = (Math.random() < 0.5 ? -1 : 1) * (0.1 + Math.random() * 0.08);
+        const speed = Math.min(Math.hypot(b.vx, b.vy) * 1.01, 11);
+        const angle = hit * (Math.PI / 3);
+        b.vx = Math.sin(angle) * speed;
+        b.vy = -Math.cos(angle) * speed;
+        b.y = PADDLE_Y - b.r;
+      }
+
+      // ブロック
+      for (let i = 0; i < state.bricks.length; i++) {
+        const k = state.bricks[i];
+        if (b.x + b.r < k.x || b.x - b.r > k.x + k.w || b.y + b.r < k.y || b.y - b.r > k.y + k.h) continue;
+        const overlapX = Math.min(b.x + b.r - k.x, k.x + k.w - (b.x - b.r));
+        const overlapY = Math.min(b.y + b.r - k.y, k.y + k.h - (b.y - b.r));
+        if (overlapX < overlapY) b.vx = -b.vx; else b.vy = -b.vy;
+        k.hp--;
+        burst(b.x, b.y, k.color);
+        if (k.hp <= 0) {
+          state.score += 10 * state.stage;
+          if (Math.random() < 0.14) dropItem(k.x + k.w / 2, k.y + k.h / 2);
+          state.bricks.splice(i, 1);
+        } else {
+          state.score += 3;
+        }
+        updateHud();
+        break;
+      }
+    }
+
+    // 落球
+    const before = state.balls.length;
+    state.balls = state.balls.filter((b) => b.y - b.r < H + 20);
+    if (state.balls.length === 0 && before > 0) {
+      state.life--;
+      updateHud();
+      if (state.life <= 0) {
+        state.mode = 'over';
+        showOverlay('ゲームオーバー', `スコア ${state.score} 点／ステージ ${state.stage}／ベスト ${best} 点`, 'もう一度');
+      } else {
+        state.paddle.w = BASE_PADDLE_W;
+        state.balls = [newBall()];
+        state.mode = 'ready';
+      }
+    }
+
+    // アイテム
+    for (let i = state.items.length - 1; i >= 0; i--) {
+      const it = state.items[i];
+      it.y += it.vy * dt;
+      if (it.y > H + 20) { state.items.splice(i, 1); continue; }
+      if (it.y > PADDLE_Y - 8 && it.y < PADDLE_Y + p.h + 8 && Math.abs(it.x - p.x) < p.w / 2 + 10) {
+        applyItem(it.type);
+        burst(it.x, it.y, it.color);
+        state.items.splice(i, 1);
+      }
+    }
+
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const q = state.particles[i];
+      q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 0.12 * dt; q.life -= 0.03 * dt;
+      if (q.life <= 0) state.particles.splice(i, 1);
+    }
+
+    if (state.bricks.length === 0) {
+      state.stage++;
+      state.score += 200;
+      updateHud();
+      resetStage(state.stage);
+      showOverlay(`ステージ ${state.stage}`, 'クリア！ 次のステージに進みます。', 'つづける');
+      state.mode = 'clear-wait';
+    }
+  }
+
+  // ---- 描画 ----
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#141633');
+    g.addColorStop(1, '#0b0c1c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const k of state.bricks) {
+      ctx.fillStyle = k.color;
+      ctx.globalAlpha = k.hp < k.max ? 0.55 : 1;
+      roundRect(k.x, k.y, k.w, k.h, 5);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      if (k.max > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(k.hp, k.x + k.w / 2, k.y + k.h / 2 + 4);
+      }
+    }
+
+    for (const it of state.items) {
+      ctx.fillStyle = it.color;
+      roundRect(it.x - 9, it.y - 9, 18, 18, 5);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText({ wide: 'W', thin: 'S', slow: 'L', multi: 'M', life: '♥' }[it.type], it.x, it.y + 4);
+    }
+
+    for (const q of state.particles) {
+      ctx.globalAlpha = Math.max(q.life, 0);
+      ctx.fillStyle = q.color;
+      ctx.fillRect(q.x - 2, q.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+
+    const p = state.paddle;
+    const pg = ctx.createLinearGradient(p.x - p.w / 2, 0, p.x + p.w / 2, 0);
+    pg.addColorStop(0, '#7c6cff');
+    pg.addColorStop(1, '#38bdf8');
+    ctx.fillStyle = pg;
+    roundRect(p.x - p.w / 2, PADDLE_Y, p.w, p.h, 6);
+    ctx.fill();
+
+    for (const b of state.balls) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#7c6cff';
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    if (state.mode === 'ready') {
+      ctx.fillStyle = 'rgba(232,233,245,.8)';
+      ctx.font = '14px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('クリック／スペースキーで発射', W / 2, PADDLE_Y - 34);
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min((now - last) / 16.666, 2.5);
+    last = now;
+    if (state.mode === 'playing' || state.mode === 'ready') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  resetStage(1);
+  state.mode = 'title';
+  showOverlay('ブロック崩し', 'パドルを動かしてボールを打ち返し、ブロックを全部壊しましょう。', 'スタート');
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

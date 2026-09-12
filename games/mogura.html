@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>もぐらたたき ｜ ミニゲームセンター</title>
+<meta name="description" content="30秒間でどれだけ叩けるか。爆弾を避けて金もぐらを狙う反射神経ゲーム。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%A8%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+    --hole:#0d0e1f; --dirt:#8a6b4a; --dirt-2:#6f543a; --ground:#1d2a1f;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee;
+            --hole:#4a3f52; --dirt:#c49a6c; --dirt-2:#a8835a; --ground:#dfeadb; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 24px 16px 56px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); font-size: .88rem; margin: 0 0 20px; }
+
+  .hud { display: flex; gap: 8px; margin-bottom: 12px; }
+  .score { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; text-align: center; }
+  .score .label { display: block; color: var(--muted); font-size: .68rem; letter-spacing: .08em; }
+  .score .value { display: block; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .score.warn .value { color: #f87171; }
+
+  .timebar { height: 6px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+  .timebar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #4ade80, #facc15, #f87171); transform-origin: left; }
+
+  .field {
+    position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    background: var(--ground); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+  }
+  .hole {
+    position: relative; aspect-ratio: 1 / .9; cursor: pointer; border: 0; padding: 0;
+    background: none; overflow: visible;
+  }
+  .hole .pit {
+    position: absolute; inset: 0; overflow: hidden;
+    border-radius: 50% 50% 46% 46% / 42% 42% 58% 58%;
+    background: radial-gradient(120% 100% at 50% 5%, var(--hole) 55%, color-mix(in srgb, var(--hole) 70%, #000) 100%);
+    box-shadow: inset 0 10px 16px rgba(0,0,0,.45);
+  }
+  .hole .mole {
+    position: absolute; left: 50%; bottom: -90%; translate: -50% 0;
+    width: 74%; aspect-ratio: 1; display: grid; place-items: center;
+    font-size: clamp(28px, 9vw, 46px); line-height: 1;
+    transition: bottom .12s ease-out;
+  }
+  .hole.up .mole { bottom: 6%; }
+  .hole .lip {
+    position: absolute; left: -3%; right: -3%; bottom: -4%; height: 34%;
+    background: linear-gradient(180deg, var(--dirt), var(--dirt-2));
+    border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+    box-shadow: 0 3px 6px rgba(0,0,0,.28);
+  }
+  .hole:active { filter: brightness(1.1); }
+  .hole.hit { animation: shake .22s ease; }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  .pop {
+    position: absolute; font-weight: 800; font-size: 1rem; pointer-events: none;
+    animation: floatUp .7s ease-out forwards; z-index: 4; text-shadow: 0 1px 4px rgba(0,0,0,.4);
+  }
+  @keyframes floatUp { to { transform: translateY(-42px); opacity: 0; } }
+
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center;
+    background: color-mix(in srgb, var(--panel) 97%, transparent); border-radius: 16px; z-index: 6; padding: 20px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 1.5rem; }
+  .overlay p { margin: 0; color: var(--muted); font-size: .88rem; }
+  button.btn {
+    font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0;
+    border-radius: 12px; padding: 10px 22px; cursor: pointer; transition: filter .15s ease;
+  }
+  button.btn:hover { filter: brightness(1.12); }
+
+  .combo { text-align: center; height: 24px; margin-top: 10px; color: var(--muted); font-size: .9rem; font-weight: 600; }
+  .combo.on { color: #facc15; }
+
+  .help { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: .85rem; color: var(--muted); }
+  .help b { color: var(--text); }
+  .help table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .help td { padding: 3px 0; }
+  .help td:first-child { width: 2.4em; font-size: 1.2rem; }
+  .help td:last-child { text-align: right; color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← ミニゲームセンター</a>
+  <h1>もぐらたたき</h1>
+  <p class="lead">30秒間の勝負。爆弾は叩かないように、金もぐらは逃さないように。</p>
+
+  <div class="hud">
+    <div class="score"><span class="label">SCORE</span><span class="value" id="score">0</span></div>
+    <div class="score"><span class="label">BEST</span><span class="value" id="best">0</span></div>
+    <div class="score" id="timeBox"><span class="label">TIME</span><span class="value" id="time">30</span></div>
+  </div>
+  <div class="timebar"><i id="bar"></i></div>
+
+  <div class="field" id="field">
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">もぐらたたき</h2>
+      <p id="ovText">穴から出てきたもぐらを叩きましょう。</p>
+      <div><button class="btn" id="ovBtn">スタート</button></div>
+    </div>
+  </div>
+
+  <div class="combo" id="combo"></div>
+
+  <div class="help">
+    <b>とくてん</b>
+    <table>
+      <tr><td>🐹</td><td>ふつうのもぐら</td><td>+100</td></tr>
+      <tr><td>✨</td><td>金もぐら（すぐ引っこむ）</td><td>+500</td></tr>
+      <tr><td>💣</td><td>爆弾（叩くとコンボが切れる）</td><td>−300</td></tr>
+    </table>
+    連続で叩くとコンボ倍率が上がります（最大5倍）。もぐらを見逃すか爆弾を叩くとコンボはリセットです。
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'minigames.mogura.best';
+  const HOLES = 9;
+  const DURATION = 30;
+
+  const field = document.getElementById('field');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const timeEl = document.getElementById('time');
+  const timeBox = document.getElementById('timeBox');
+  const barEl = document.getElementById('bar');
+  const comboEl = document.getElementById('combo');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovText = document.getElementById('ovText');
+  const ovBtn = document.getElementById('ovBtn');
+
+  let best = 0;
+  try { best = Number(localStorage.getItem(KEY)) || 0; } catch (e) {}
+  bestEl.textContent = best;
+
+  const holes = [];
+  for (let i = 0; i < HOLES; i++) {
+    const b = document.createElement('button');
+    b.className = 'hole';
+    b.type = 'button';
+    b.setAttribute('aria-label', `穴 ${i + 1}`);
+    b.innerHTML = '<span class="pit"><span class="mole"></span></span><span class="lip"></span>';
+    b.addEventListener('pointerdown', () => whack(i));
+    field.appendChild(b);
+    holes.push({ el: b, moleEl: b.querySelector('.mole'), busy: false, kind: null, timer: 0 });
+  }
+
+  let running = false, score = 0, combo = 0, timeLeft = DURATION;
+  let tickId = null, spawnId = null, startedAt = 0;
+
+  function setScore(v) {
+    score = Math.max(0, v);
+    scoreEl.textContent = score;
+  }
+
+  function showCombo() {
+    if (combo >= 2) {
+      comboEl.textContent = `${combo} コンボ ×${multiplier()}`;
+      comboEl.classList.add('on');
+    } else {
+      comboEl.textContent = '';
+      comboEl.classList.remove('on');
+    }
+  }
+  function multiplier() { return Math.min(1 + Math.floor(combo / 3), 5); }
+
+  function popText(holeEl, text, color) {
+    const p = document.createElement('span');
+    p.className = 'pop';
+    p.textContent = text;
+    p.style.color = color;
+    const fr = field.getBoundingClientRect(), hr = holeEl.getBoundingClientRect();
+    p.style.left = (hr.left - fr.left + hr.width / 2 - 20) + 'px';
+    p.style.top = (hr.top - fr.top + hr.height / 4) + 'px';
+    field.appendChild(p);
+    setTimeout(() => p.remove(), 700);
+  }
+
+  function hide(h, missed) {
+    if (!h.busy) return;
+    clearTimeout(h.timer);
+    const wasMole = h.kind === 'mole' || h.kind === 'gold';
+    h.busy = false; h.kind = null;
+    h.el.classList.remove('up');
+    setTimeout(() => { if (!h.busy) h.moleEl.textContent = ''; }, 150);
+    if (missed && wasMole && combo > 0) { combo = 0; showCombo(); }
+  }
+
+  function spawn() {
+    if (!running) return;
+    const free = holes.filter((h) => !h.busy);
+    if (!free.length) return;
+    const h = free[Math.floor(Math.random() * free.length)];
+    const elapsed = (DURATION - timeLeft) / DURATION;
+    const r = Math.random();
+    let kind, life;
+    if (r < 0.06 + elapsed * 0.04) { kind = 'gold'; life = 700; }
+    else if (r < 0.30 + elapsed * 0.12) { kind = 'bomb'; life = 950; }
+    else { kind = 'mole'; life = 1250 - elapsed * 550; }
+
+    h.busy = true; h.kind = kind;
+    h.moleEl.textContent = { mole: '🐹', gold: '✨', bomb: '💣' }[kind];
+    // 表示を1フレーム遅らせて transition を効かせる
+    requestAnimationFrame(() => { if (h.busy) h.el.classList.add('up'); });
+    h.timer = setTimeout(() => hide(h, true), life);
+  }
+
+  function whack(i) {
+    if (!running) return;
+    const h = holes[i];
+    if (!h.busy) return;
+    const kind = h.kind;
+    h.el.classList.remove('hit');
+    void h.el.offsetWidth;
+    h.el.classList.add('hit');
+
+    if (kind === 'bomb') {
+      setScore(score - 300);
+      combo = 0;
+      popText(h.el, '-300', '#f87171');
+    } else {
+      const base = kind === 'gold' ? 500 : 100;
+      const gain = base * multiplier();
+      setScore(score + gain);
+      combo++;
+      popText(h.el, '+' + gain, kind === 'gold' ? '#facc15' : '#4ade80');
+    }
+    showCombo();
+    hide(h, false);
+  }
+
+  function tick() {
+    timeLeft = Math.max(0, DURATION - (Date.now() - startedAt) / 1000);
+    timeEl.textContent = Math.ceil(timeLeft);
+    barEl.style.transform = `scaleX(${timeLeft / DURATION})`;
+    timeBox.classList.toggle('warn', timeLeft <= 5);
+    if (timeLeft <= 0) finish();
+  }
+
+  function scheduleSpawn() {
+    if (!running) return;
+    const elapsed = (DURATION - timeLeft) / DURATION;
+    const wait = 520 - elapsed * 280 + Math.random() * 340;
+    spawnId = setTimeout(() => { spawn(); scheduleSpawn(); }, wait);
+  }
+
+  function start() {
+    running = true;
+    setScore(0);
+    combo = 0; showCombo();
+    timeLeft = DURATION;
+    startedAt = Date.now();
+    overlay.hidden = true;
+    holes.forEach((h) => hide(h, false));
+    tick();
+    tickId = setInterval(tick, 100);
+    scheduleSpawn();
+    spawn();
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(tickId);
+    clearTimeout(spawnId);
+    holes.forEach((h) => hide(h, false));
+    const isBest = score > best;
+    if (isBest) {
+      best = score;
+      bestEl.textContent = best;
+      try { localStorage.setItem(KEY, String(best)); } catch (e) {}
+    }
+    ovTitle.textContent = 'タイムアップ！';
+    ovText.textContent = isBest
+      ? `${score} 点！ 自己ベスト更新です 🎉`
+      : `${score} 点（ベスト ${best} 点）`;
+    ovBtn.textContent = 'もう一度';
+    overlay.hidden = false;
+    comboEl.textContent = '';
+    comboEl.classList.remove('on');
+  }
+
+  ovBtn.addEventListener('click', start);
+  field.addEventListener('contextmenu', (e) => e.preventDefault());
+  barEl.style.transform = 'scaleX(1)';
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ことわざタイピング ｜ ミニゲームセンター</title>
+<meta name="description" content="ことわざをローマ字で打つ60秒タイピングゲーム。複数のローマ字表記に対応。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8C%A8%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff; --done:#4ade80; --miss:#f87171;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; --done:#16a34a; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 56px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: 1.8rem; margin: 0 0 4px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); font-size: .88rem; margin: 0 0 20px; }
+
+  .hud { display: flex; gap: 8px; margin-bottom: 12px; }
+  .score { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; text-align: center; }
+  .score .label { display: block; color: var(--muted); font-size: .68rem; letter-spacing: .08em; }
+  .score .value { display: block; font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .score.warn .value { color: var(--miss); }
+  .timebar { height: 6px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
+  .timebar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg,#4ade80,#facc15,#f87171); transform-origin: left; transition: transform .1s linear; }
+
+  .card {
+    position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px 22px; text-align: center; min-height: 220px; display: grid; align-content: center; gap: 14px;
+  }
+  .card.shake { animation: shake .18s ease; }
+  @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .jp { font-size: clamp(1.15rem, 4.4vw, 1.7rem); font-weight: 700; letter-spacing: .02em; }
+  .kana { color: var(--muted); font-size: .92rem; }
+  .roma {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: clamp(1rem, 3.6vw, 1.35rem); letter-spacing: .06em; word-break: break-all; line-height: 1.9;
+  }
+  .roma .done { color: var(--done); }
+  .roma .cur { background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 2px; }
+  .roma .rest { color: var(--muted); }
+
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center;
+    background: color-mix(in srgb, var(--panel) 97%, transparent); border-radius: 16px; padding: 20px; z-index: 3;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0; font-size: 1.5rem; }
+  .overlay p { margin: 0; color: var(--muted); font-size: .88rem; }
+  .result { display: flex; flex-wrap: wrap; gap: 10px 16px; justify-content: center; margin: 4px 0 2px; }
+  .result div { min-width: 78px; }
+  .result b { display: block; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+  .result span { color: var(--muted); font-size: .72rem; letter-spacing: .06em; }
+  button.btn {
+    font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0;
+    border-radius: 12px; padding: 10px 22px; cursor: pointer; transition: filter .15s ease;
+  }
+  button.btn:hover { filter: brightness(1.12); }
+
+  #catcher { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+  .mobile-note { margin-top: 12px; font-size: .8rem; color: var(--muted); text-align: center; }
+  .help { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: .85rem; color: var(--muted); }
+  .help b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← ミニゲームセンター</a>
+  <h1>ことわざタイピング</h1>
+  <p class="lead">60秒間、表示されたことわざをローマ字で打ちます。「し」は shi でも si でもOKです。</p>
+
+  <div class="hud">
+    <div class="score"><span class="label">SCORE</span><span class="value" id="score">0</span></div>
+    <div class="score"><span class="label">BEST</span><span class="value" id="best">0</span></div>
+    <div class="score"><span class="label">KPM</span><span class="value" id="kpm">0</span></div>
+    <div class="score" id="timeBox"><span class="label">TIME</span><span class="value" id="time">60</span></div>
+  </div>
+  <div class="timebar"><i id="bar"></i></div>
+
+  <div class="card" id="card">
+    <div class="jp" id="jp">　</div>
+    <div class="kana" id="kana">　</div>
+    <div class="roma" id="roma">　</div>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">ことわざタイピング</h2>
+      <p id="ovText">キーボードで入力します。スタートを押すとカウントなしで即開始。</p>
+      <div class="result" id="ovResult" hidden>
+        <div><b id="rScore">0</b><span>SCORE</span></div>
+        <div><b id="rKpm">0</b><span>KPM</span></div>
+        <div><b id="rAcc">0%</b><span>正確率</span></div>
+        <div><b id="rClear">0</b><span>クリア数</span></div>
+      </div>
+      <div><button class="btn" id="ovBtn">スタート</button></div>
+    </div>
+    <input id="catcher" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-hidden="true">
+  </div>
+  <p class="mobile-note">スマホの場合は上の枠をタップするとキーボードが出ます。</p>
+
+  <div class="help">
+    <b>スコア</b>：正しく打てたキー1つにつき10点、ことわざを1つ打ち切るごとに100点のボーナス。<br>
+    <b>KPM</b>：1分あたりの打鍵数。ミスタイプはスコアになりませんが、進行は止まりません（正しいキーを打てば進みます）。<br>
+    <b>ローマ字</b>：shi/si、tsu/tu、ja/zya、促音は子音重ね（例：がっこう → gakkou）など複数の表記を受け付けます。「ん」は n でも nn でも構いません。
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'minigames.typing.best';
+  const DURATION = 60;
+
+  const PHRASES = [
+    ['石の上にも三年', 'いしのうえにもさんねん'],
+    ['七転び八起き', 'ななころびやおき'],
+    ['猿も木から落ちる', 'さるもきからおちる'],
+    ['急がば回れ', 'いそがばまわれ'],
+    ['塵も積もれば山となる', 'ちりもつもればやまとなる'],
+    ['花より団子', 'はなよりだんご'],
+    ['二兎を追う者は一兎をも得ず', 'にとをおうものはいっとをもえず'],
+    ['聞くは一時の恥', 'きくはいっときのはじ'],
+    ['備えあれば憂いなし', 'そなえあればうれいなし'],
+    ['犬も歩けば棒に当たる', 'いぬもあるけばぼうにあたる'],
+    ['論より証拠', 'ろんよりしょうこ'],
+    ['善は急げ', 'ぜんはいそげ'],
+    ['石橋を叩いて渡る', 'いしばしをたたいてわたる'],
+    ['雨降って地固まる', 'あめふってじかたまる'],
+    ['鬼に金棒', 'おににかなぼう'],
+    ['餅は餅屋', 'もちはもちや'],
+    ['虎穴に入らずんば虎子を得ず', 'こけつにいらずんばこじをえず'],
+    ['好きこそ物の上手なれ', 'すきこそもののじょうずなれ'],
+    ['月とすっぽん', 'つきとすっぽん'],
+    ['笑う門には福来る', 'わらうかどにはふくきたる'],
+    ['縁の下の力持ち', 'えんのしたのちからもち'],
+    ['三人寄れば文殊の知恵', 'さんにんよればもんじゅのちえ'],
+    ['習うより慣れろ', 'ならうよりなれろ'],
+    ['鉄は熱いうちに打て', 'てつはあついうちにうて'],
+    ['棚から牡丹餅', 'たなからぼたもち'],
+    ['七転八倒', 'しちてんばっとう'],
+    ['蛙の子は蛙', 'かえるのこはかえる'],
+    ['一期一会', 'いちごいちえ'],
+    ['初心忘るべからず', 'しょしんわするべからず'],
+    ['継続は力なり', 'けいぞくはちからなり'],
+  ];
+
+  // かな→ローマ字候補（先頭が表示用）
+  const BASE = {
+    'あ':['a'],'い':['i','yi'],'う':['u','wu'],'え':['e'],'お':['o'],
+    'か':['ka','ca'],'き':['ki'],'く':['ku','cu'],'け':['ke'],'こ':['ko','co'],
+    'が':['ga'],'ぎ':['gi'],'ぐ':['gu'],'げ':['ge'],'ご':['go'],
+    'さ':['sa'],'し':['shi','si','ci'],'す':['su'],'せ':['se'],'そ':['so'],
+    'ざ':['za'],'じ':['ji','zi'],'ず':['zu'],'ぜ':['ze'],'ぞ':['zo'],
+    'た':['ta'],'ち':['chi','ti'],'つ':['tsu','tu'],'て':['te'],'と':['to'],
+    'だ':['da'],'ぢ':['di'],'づ':['du'],'で':['de'],'ど':['do'],
+    'な':['na'],'に':['ni'],'ぬ':['nu'],'ね':['ne'],'の':['no'],
+    'は':['ha'],'ひ':['hi'],'ふ':['fu','hu'],'へ':['he'],'ほ':['ho'],
+    'ば':['ba'],'び':['bi'],'ぶ':['bu'],'べ':['be'],'ぼ':['bo'],
+    'ぱ':['pa'],'ぴ':['pi'],'ぷ':['pu'],'ぺ':['pe'],'ぽ':['po'],
+    'ま':['ma'],'み':['mi'],'む':['mu'],'め':['me'],'も':['mo'],
+    'や':['ya'],'ゆ':['yu'],'よ':['yo'],
+    'ら':['ra'],'り':['ri'],'る':['ru'],'れ':['re'],'ろ':['ro'],
+    'わ':['wa'],'ゐ':['wi'],'ゑ':['we'],'を':['wo'],'ん':['n','nn','xn'],
+    'ぁ':['la','xa'],'ぃ':['li','xi'],'ぅ':['lu','xu'],'ぇ':['le','xe'],'ぉ':['lo','xo'],
+    'ゃ':['lya','xya'],'ゅ':['lyu','xyu'],'ょ':['lyo','xyo'],'っ':['ltu','xtu','ltsu'],
+    'ー':['-'],'、':[','],'。':['.'],
+  };
+  const YOON = {
+    'きゃ':['kya'],'きゅ':['kyu'],'きょ':['kyo'],
+    'ぎゃ':['gya'],'ぎゅ':['gyu'],'ぎょ':['gyo'],
+    'しゃ':['sha','sya'],'しゅ':['shu','syu'],'しょ':['sho','syo'],
+    'じゃ':['ja','zya','jya'],'じゅ':['ju','zyu','jyu'],'じょ':['jo','zyo','jyo'],
+    'ちゃ':['cha','tya'],'ちゅ':['chu','tyu'],'ちょ':['cho','tyo'],
+    'にゃ':['nya'],'にゅ':['nyu'],'にょ':['nyo'],
+    'ひゃ':['hya'],'ひゅ':['hyu'],'ひょ':['hyo'],
+    'びゃ':['bya'],'びゅ':['byu'],'びょ':['byo'],
+    'ぴゃ':['pya'],'ぴゅ':['pyu'],'ぴょ':['pyo'],
+    'みゃ':['mya'],'みゅ':['myu'],'みょ':['myo'],
+    'りゃ':['rya'],'りゅ':['ryu'],'りょ':['ryo'],
+    'てぃ':['thi'],'でぃ':['dhi'],'ふぁ':['fa'],'ふぃ':['fi'],'ふぇ':['fe'],'ふぉ':['fo'],
+    'うぃ':['wi'],'うぇ':['we'],'ヴぁ':['va'],
+  };
+
+  // かな文字列をセグメント（かな＋ローマ字候補）に分解する
+  function toSegments(kana) {
+    const segs = [];
+    let i = 0;
+    while (i < kana.length) {
+      let sokuon = '';
+      if (kana[i] === 'っ' && i + 1 < kana.length) { sokuon = 'っ'; i++; }
+
+      let text = null, cands = null;
+      const two = kana.slice(i, i + 2);
+      if (YOON[two]) { text = two; cands = YOON[two].slice(); i += 2; }
+      else if (BASE[kana[i]]) { text = kana[i]; cands = BASE[kana[i]].slice(); i += 1; }
+      else { i += 1; continue; }
+
+      if (text === 'ん') {
+        const next = kana[i];
+        // 次が母音・な行・や行・文末のときは n 単独では確定させない
+        const ambiguous = next === undefined || 'あいうえおなにぬねのやゆよん'.includes(next);
+        cands = ambiguous ? ['nn', 'xn'] : ['n', 'nn', 'xn'];
+      }
+
+      if (sokuon) {
+        const doubled = cands
+          .filter((r) => /^[a-z]/.test(r) && !'aiueon'.includes(r[0]))
+          .map((r) => r[0] + r);
+        const spelled = [];
+        for (const s of BASE['っ']) for (const r of cands) spelled.push(s + r);
+        cands = [...doubled, ...spelled];
+        text = 'っ' + text;
+      }
+      segs.push({ text, cands });
+    }
+    return segs;
+  }
+
+  const el = (id) => document.getElementById(id);
+  const jpEl = el('jp'), kanaEl = el('kana'), romaEl = el('roma'), cardEl = el('card');
+  const scoreEl = el('score'), bestEl = el('best'), kpmEl = el('kpm'), timeEl = el('time'), timeBox = el('timeBox');
+  const barEl = el('bar'), overlay = el('overlay'), ovTitle = el('ovTitle'), ovText = el('ovText');
+  const ovBtn = el('ovBtn'), ovResult = el('ovResult'), catcher = el('catcher');
+
+  let best = 0;
+  try { best = Number(localStorage.getItem(KEY)) || 0; } catch (e) {}
+  bestEl.textContent = best;
+
+  let running = false, segs = [], segIndex = 0, buf = '', typed = '';
+  let score = 0, hits = 0, misses = 0, cleared = 0, pendingN = false;
+  let startedAt = 0, timer = null, order = [], orderIndex = 0;
+
+  function shuffled() {
+    const a = PHRASES.map((p, i) => i);
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function nextPhrase() {
+    if (orderIndex >= order.length) { order = shuffled(); orderIndex = 0; }
+    const [jp, kana] = PHRASES[order[orderIndex++]];
+    jpEl.textContent = jp;
+    kanaEl.textContent = kana;
+    segs = toSegments(kana);
+    segIndex = 0; buf = ''; typed = ''; pendingN = false;
+    renderRoma();
+  }
+
+  function renderRoma() {
+    const cur = segs[segIndex];
+    let curRest = '';
+    if (cur) {
+      const match = cur.cands.find((r) => r.startsWith(buf)) || cur.cands[0];
+      curRest = match.slice(buf.length);
+    }
+    const rest = segs.slice(segIndex + 1).map((s) => s.cands[0]).join('');
+    romaEl.innerHTML =
+      `<span class="done">${escapeHtml(typed + buf)}</span>` +
+      (curRest ? `<span class="cur">${escapeHtml(curRest[0])}</span>${escapeHtml(curRest.slice(1))}` : '') +
+      `<span class="rest">${escapeHtml(rest)}</span>`;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  }
+
+  function miss() {
+    misses++;
+    cardEl.classList.remove('shake');
+    void cardEl.offsetWidth;
+    cardEl.classList.add('shake');
+  }
+
+  function press(ch) {
+    if (!running) return;
+    const cur = segs[segIndex];
+    if (!cur) return;
+    const attempt = buf + ch;
+    const cands = cur.cands.filter((r) => r.startsWith(attempt));
+
+    if (!cands.length) {
+      // 「ん」を n 1つで確定した直後の余分な n は受け流す
+      if (pendingN && ch === 'n') { pendingN = false; return; }
+      miss();
+      return;
+    }
+
+    pendingN = false;
+    buf = attempt;
+    hits++;
+    score += 10;
+    scoreEl.textContent = score;
+
+    if (cands.includes(buf)) {
+      if (cur.text === 'ん' && buf === 'n') pendingN = true;
+      typed += buf;
+      buf = '';
+      segIndex++;
+      if (segIndex >= segs.length) {
+        cleared++;
+        score += 100;
+        scoreEl.textContent = score;
+        nextPhrase();
+        return;
+      }
+    }
+    renderRoma();
+  }
+
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === ' ' && !running) { e.preventDefault(); start(); return; }
+    if (e.key.length !== 1) return;
+    const ch = e.key.toLowerCase();
+    if (!/[a-z0-9,.\-]/.test(ch)) return;
+    e.preventDefault();
+    press(ch);
+  });
+  // スマホのソフトキーボード用
+  catcher.addEventListener('input', () => {
+    for (const ch of catcher.value.toLowerCase()) {
+      if (/[a-z0-9,.\-]/.test(ch)) press(ch);
+    }
+    catcher.value = '';
+  });
+  cardEl.addEventListener('click', () => { if (running) catcher.focus(); });
+
+  function tick() {
+    const left = Math.max(0, DURATION - (Date.now() - startedAt) / 1000);
+    timeEl.textContent = Math.ceil(left);
+    barEl.style.transform = `scaleX(${left / DURATION})`;
+    timeBox.classList.toggle('warn', left <= 10);
+    const min = (DURATION - left) / 60;
+    kpmEl.textContent = min > 0.02 ? Math.round(hits / min) : 0;
+    if (left <= 0) finish();
+  }
+
+  function start() {
+    running = true;
+    score = 0; hits = 0; misses = 0; cleared = 0;
+    scoreEl.textContent = 0; kpmEl.textContent = 0;
+    order = shuffled(); orderIndex = 0;
+    nextPhrase();
+    overlay.hidden = true;
+    startedAt = Date.now();
+    tick();
+    timer = setInterval(tick, 100);
+    catcher.focus();
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(timer);
+    const acc = hits + misses ? Math.round(hits / (hits + misses) * 100) : 100;
+    const kpm = Math.round(hits / (DURATION / 60));
+    const isBest = score > best;
+    if (isBest) {
+      best = score;
+      bestEl.textContent = best;
+      try { localStorage.setItem(KEY, String(best)); } catch (e) {}
+    }
+    el('rScore').textContent = score;
+    el('rKpm').textContent = kpm;
+    el('rAcc').textContent = acc + '%';
+    el('rClear').textContent = cleared;
+    ovResult.hidden = false;
+    ovTitle.textContent = isBest ? '自己ベスト更新！🎉' : 'タイムアップ！';
+    ovText.textContent = isBest ? `${score} 点。よく打ちました。` : `ベストは ${best} 点です。`;
+    ovBtn.textContent = 'もう一度';
+    overlay.hidden = false;
+    catcher.blur();
+  }
+
+  ovBtn.addEventListener('click', start);
+  jpEl.textContent = 'ことわざタイピング';
+  kanaEl.textContent = '60秒でどこまで打てるか';
+  romaEl.textContent = 'start!';
+})();
+</script>
+</body>
+</html>
