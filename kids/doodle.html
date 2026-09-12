@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>にじいろおえかき ｜ こどもあそび</title>
+<meta name="description" content="指でなぞると虹色の線とキラキラが出るおえかきあそび。描いた線はゆっくり消えるので何度でも遊べます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%A8%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    font-family: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4", "Yu Gothic", system-ui, sans-serif;
+    background: #fffdf6;
+  }
+  canvas { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+  #fx { pointer-events: auto; }
+  .home, .clear {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); z-index: 10;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    font-size: 22px; display: grid; place-items: center; overflow: hidden;
+    background: rgba(255,255,255,.88); color: #7a6248; box-shadow: 0 2px 0 rgba(0,0,0,.07);
+  }
+  .home { left: 10px; }
+  .clear { right: 10px; font-size: 26px; }
+  .home i { position: absolute; inset: 0; background: #ffe0a8; transform: scaleY(0); transform-origin: bottom; }
+  .home span, .clear span { position: relative; }
+  .hint {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 10;
+    background: rgba(255,255,255,.85); color: #7a6248; font-size: 15px; font-weight: 800;
+    padding: 7px 18px; border-radius: 99px; pointer-events: none; white-space: nowrap; transition: opacity .6s ease;
+  }
+</style>
+</head>
+<body>
+<canvas id="art"></canvas>
+<canvas id="fx"></canvas>
+<button class="home" id="home" aria-label="ホームにもどる（ながおし）"><i id="homeFill"></i><span>🏠</span></button>
+<button class="clear" id="clear" aria-label="ぜんぶけす"><span>🧽</span></button>
+<div class="hint" id="hint">ゆびで なぞってみてね</div>
+
+<script>
+(() => {
+  'use strict';
+  const BG = '#fffdf6';
+  const art = document.getElementById('art');   // 描いた線とスタンプが残る面
+  const fx  = document.getElementById('fx');    // キラキラだけの面（毎回消える）
+  const actx = art.getContext('2d');
+  const fctx = fx.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+
+  function resize() {
+    // 描いたものを消さずにサイズを合わせる
+    const keep = document.createElement('canvas');
+    if (art.width && art.height) {
+      keep.width = art.width; keep.height = art.height;
+      keep.getContext('2d').drawImage(art, 0, 0);
+    }
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    for (const [cv, ctx] of [[art, actx], [fx, fctx]]) {
+      cv.width = Math.floor(W * dpr);
+      cv.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+    }
+    actx.fillStyle = BG;
+    actx.fillRect(0, 0, W, H);
+    if (keep.width) actx.drawImage(keep, 0, 0, keep.width / dpr, keep.height / dpr);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---- 音（なぞった高さで音程が変わる） ----
+  let ac = null;
+  function audio() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ac = new AC();
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  // ヨナ抜き音階なので、どこを触っても濁らずきれいに響く
+  const SCALE = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880];
+  let lastTone = 0;
+  function tone(y, force) {
+    const now = performance.now();
+    if (!force && now - lastTone < 110) return;
+    lastTone = now;
+    const a = audio();
+    if (!a) return;
+    const idx = Math.max(0, Math.min(SCALE.length - 1, Math.floor((1 - y / H) * SCALE.length)));
+    const t = a.currentTime;
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(SCALE[idx], t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+    o.connect(g).connect(a.destination);
+    o.start(t);
+    o.stop(t + 0.4);
+  }
+
+  // ---- お絵かき ----
+  const pointers = new Map();
+  let hue = Math.random() * 360;
+  const sparks = [];
+  const STAMPS = ['⭐','💖','🌸','🎈','🐤','🍓','🦋','🌈','🐱','🚗'];
+  const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+  function addSparks(x, y, n, big) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 0.8 + Math.random() * (big ? 3.4 : 1.8);
+      sparks.push({
+        x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 0.6,
+        life: 1, size: (big ? 5 : 3) + Math.random() * 4,
+        hue: (hue + Math.random() * 60) % 360,
+      });
+    }
+  }
+
+  function down(e) {
+    fx.setPointerCapture?.(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, moved: false });
+    hue = (hue + 40 + Math.random() * 80) % 360;
+    tone(e.clientY, true);
+    addSparks(e.clientX, e.clientY, 5, false);
+    hideHint();
+  }
+
+  function move(e) {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of events) {
+      const x = ev.clientX, y = ev.clientY;
+      const d = Math.hypot(x - p.x, y - p.y);
+      if (d < 1.2) continue;
+      hue = (hue + Math.min(d * 0.5, 8)) % 360;
+      actx.strokeStyle = `hsl(${hue} 92% 58%)`;
+      actx.lineWidth = Math.max(18, 42 - d * 0.6);
+      actx.beginPath();
+      actx.moveTo(p.x, p.y);
+      actx.lineTo(x, y);
+      actx.stroke();
+      p.x = x; p.y = y; p.moved = true;
+      if (Math.random() < 0.3) addSparks(x, y, 1, false);
+    }
+    tone(p.y, false);
+  }
+
+  function up(e) {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    pointers.delete(e.pointerId);
+    // 点をちょんと押しただけのときは、ごほうびに大きなスタンプを押す
+    if (!p.moved) {
+      const s = STAMPS[Math.floor(Math.random() * STAMPS.length)];
+      const size = 100 + Math.random() * 60;
+      actx.save();
+      // 直前のフェード処理で薄い色が残っているので、必ず不透明に戻してから描く
+      actx.globalAlpha = 1;
+      actx.fillStyle = '#333';
+      actx.translate(p.x, p.y);
+      actx.rotate((Math.random() - 0.5) * 0.5);
+      actx.font = `${size}px ${EMOJI_FONT}`;
+      actx.fillText(s, 0, 0);
+      actx.restore();
+      addSparks(p.x, p.y, 12, true);
+      tone(p.y, true);
+    }
+  }
+
+  fx.addEventListener('pointerdown', down);
+  fx.addEventListener('pointermove', move);
+  fx.addEventListener('pointerup', up);
+  fx.addEventListener('pointercancel', (e) => pointers.delete(e.pointerId));
+
+  const hint = document.getElementById('hint');
+  let hintTimer = null;
+  function hideHint() {
+    hint.style.opacity = '0';
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { hint.style.opacity = '1'; }, 15000);
+  }
+
+  // ---- キラキラの描画と、線がゆっくり消えていく処理 ----
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 16.666, 3);
+    last = now;
+
+    // 描いた線をゆっくり薄くして、画面が埋まらないようにする（1分ほどかけてふんわり消える）
+    actx.fillStyle = `rgba(255,253,246,${0.0012 * dt})`;
+    actx.fillRect(0, 0, W, H);
+
+    // キラキラは残らないよう、毎回消してから描く
+    fctx.clearRect(0, 0, W, H);
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.vy += 0.07 * dt; s.vx *= 0.98;
+      s.life -= 0.026 * dt;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      fctx.globalAlpha = Math.max(0, s.life) * 0.9;
+      fctx.fillStyle = `hsl(${s.hue} 95% 66%)`;
+      fctx.beginPath();
+      fctx.arc(s.x, s.y, s.size * s.life, 0, Math.PI * 2);
+      fctx.fill();
+    }
+    fctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  document.getElementById('clear').addEventListener('click', () => {
+    actx.fillStyle = BG;
+    actx.fillRect(0, 0, W, H);
+    sparks.length = 0;
+    tone(H * 0.2, true);
+  });
+
+  // ---- 長押しでホームへ ----
+  const homeBtn = document.getElementById('home');
+  const fill = document.getElementById('homeFill');
+  let holdTimer = null;
+  homeBtn.addEventListener('pointerdown', () => {
+    fill.style.transition = 'transform .9s linear';
+    fill.style.transform = 'scaleY(1)';
+    holdTimer = setTimeout(() => { location.href = 'index.html'; }, 900);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+    homeBtn.addEventListener(ev, () => {
+      clearTimeout(holdTimer);
+      fill.style.transition = 'transform .2s ease';
+      fill.style.transform = 'scaleY(0)';
+    });
+  }
+})();
+</script>
+</body>
+</html>
