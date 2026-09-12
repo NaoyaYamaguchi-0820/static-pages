@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>3Dあそび</title>
+<meta name="description" content="Three.js で作った3Dゲーム集。子ども向けの6本と、物理エンジンで挙動を見る3Dフリースロー。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%8A%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 72px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); margin: 0 0 8px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 28px; }
+  h2 { font-size: 1.05rem; margin: 36px 0 4px; }
+  h2 + p { color: var(--muted); font-size: .86rem; margin: 0 0 16px; }
+
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  a.card {
+    display: block; text-decoration: none; color: inherit; overflow: hidden;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.22); }
+  a.card .emoji { font-size: 2.4rem; line-height: 1; display: block; margin-bottom: 10px; }
+  a.card .name { font-size: 1.12rem; font-weight: 700; display: block; }
+  a.card .desc { color: var(--muted); font-size: .84rem; display: block; margin-top: 4px; }
+  a.card .tags { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  a.card .tags span {
+    font-size: .7rem; color: var(--muted); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px;
+  }
+
+  .note { margin-top: 30px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; font-size: .85rem; color: var(--muted); }
+  .note b { color: var(--text); }
+  .note + .note { margin-top: 12px; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← static-pages</a>
+  <h1>🧊 3Dあそび</h1>
+  <p class="lead">Three.js（描画）と cannon-es（物理演算）をCDNから読み込んで動かす3Dページ集です。</p>
+
+  <h2>こども向け（3さいごろから）</h2>
+  <p>文字が読めなくても遊べます。しっぱいで終わることがなく、さわれば必ず音と動きが返ります。</p>
+  <div class="cards">
+    <a class="card" href="stack.html">
+      <span class="emoji">🏗️</span>
+      <span class="name">つみつみタワー</span>
+      <span class="desc">うごくブロックをタップでつみあげる。はみ出した分は切れて落ちる。</span>
+      <span class="tags"><span>タップ</span><span>つみあげ</span></span>
+    </a>
+    <a class="card" href="balloons.html">
+      <span class="emoji">🎈</span>
+      <span class="name">ふうせんパチン</span>
+      <span class="desc">そらに浮かぶふうせんをさわるとはじけて、中から絵が飛び出す。</span>
+      <span class="tags"><span>タップ</span><span>なぞる</span></span>
+    </a>
+    <a class="card" href="fishing.html">
+      <span class="emoji">🎣</span>
+      <span class="name">さかなつり</span>
+      <span class="desc">ゆびでつりばりを動かして、およぐさかなをつかまえる。</span>
+      <span class="tags"><span>ドラッグ</span><span>ねらう</span></span>
+    </a>
+    <a class="card" href="domino.html">
+      <span class="emoji">🀄</span>
+      <span class="name">ドミノたおし</span>
+      <span class="desc">なぞるとドミノがならび、ボタンでつぎつぎ たおれていく。</span>
+      <span class="tags"><span>なぞる</span><span>見て楽しむ</span></span>
+    </a>
+    <a class="card" href="fruits.html">
+      <span class="emoji">🍎</span>
+      <span class="name">くだものキャッチ</span>
+      <span class="desc">くまさんのかごを動かして、おちてくるくだものをうけとめる。</span>
+      <span class="tags"><span>ドラッグ</span><span>反射神経</span></span>
+    </a>
+    <a class="card" href="bowling.html">
+      <span class="emoji">🎳</span>
+      <span class="name">ボウリング</span>
+      <span class="desc">スワイプでボールをころがす。みぞにガードがあるので必ずとどく。</span>
+      <span class="tags"><span>スワイプ</span><span>物理演算</span></span>
+    </a>
+  </div>
+
+  <h2>おとな向け</h2>
+  <p>物理エンジンの挙動そのものを見るためのページです。</p>
+  <div class="cards">
+    <a class="card" href="freethrow.html">
+      <span class="emoji">🏀</span>
+      <span class="name">3Dフリースロー</span>
+      <span class="desc">FIBA規格の実寸コート。角度・バックスピン・リング反発を変えて軌道を見る。</span>
+      <span class="tags"><span>物理演算</span><span>実寸</span><span>軌跡表示</span></span>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>ネット接続が必要です。</b> ミニゲームセンターやこどもあそびと違い、
+    ライブラリをCDN（jsDelivr、だめなら unpkg）から読み込むため、オフラインでは動きません。
+  </div>
+  <div class="note">
+    <b>音が出ないときは🔇ボタンを押してください。</b> ブラウザは操作があるまで音を鳴らさない決まりになっています。
+    画面をさわれば自動で解除されますが、確実に鳴らしたいときは左上の🔇を押すと確認音が鳴ります。
+    こども向けの各ページの🏠ボタンは、誤操作よけのため<b>約1秒の長押し</b>で戻ります。
+  </div>
+
+  <footer>© static-pages ／ 3Dあそび</footer>
+</div>
+</body>
+</html>
