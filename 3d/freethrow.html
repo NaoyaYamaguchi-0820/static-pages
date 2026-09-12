@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>3Dフリースロー</title>
+<meta name="description" content="Three.js と cannon-es（物理エンジン）で作った3Dフリースロー。実寸のコートでボールの飛び方・リングやバックボードでの跳ね返りを確かめられます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%80%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:rgba(25,26,51,.82); --line:#33355e;
+    --text:#e8e9f5; --muted:#a4a7c9; --accent:#7c6cff; --ball:#e8763a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  #stage { position: fixed; inset: 0; touch-action: none; }
+  #stage canvas { display: block; }
+
+  /* ---- 画面上に重ねるUI ---- */
+  .ui { position: fixed; z-index: 10; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+
+  #topbar { top: 0; left: 0; right: 0; display: flex; align-items: flex-start; gap: 10px; padding: 12px; pointer-events: none; }
+  #topbar > * { pointer-events: auto; }
+  #title { padding: 10px 14px; }
+  #title h1 { margin: 0; font-size: 1rem; letter-spacing: -.01em; }
+  #title p { margin: 2px 0 0; font-size: .74rem; color: var(--muted); line-height: 1.5; }
+  #title a { color: var(--muted); }
+
+  #views { margin-left: auto; display: flex; gap: 6px; padding: 6px; }
+  #views button {
+    font: inherit; font-size: .76rem; white-space: nowrap; color: var(--muted); background: transparent;
+    border: 1px solid transparent; border-radius: 9px; padding: 6px 10px; cursor: pointer;
+  }
+  #views button:hover { color: var(--text); }
+  #views button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  /* 画面が狭いときはUIを詰める */
+  @media (max-width: 560px) {
+    #topbar { padding: 8px; gap: 6px; }
+    #title { padding: 8px 10px; }
+    #title h1 { font-size: .88rem; }
+    #title p { font-size: .66rem; }
+    #views { padding: 4px; gap: 2px; }
+    #views button { padding: 6px 7px; font-size: .7rem; }
+    #hud { padding: 10px 12px; }
+    .row { font-size: .74rem; }
+    .row label { width: 5.8em; }
+  }
+
+  #hud { left: 12px; bottom: 12px; padding: 12px 14px; width: min(320px, calc(100vw - 24px)); }
+  .row { display: flex; align-items: center; gap: 10px; font-size: .78rem; }
+  .row + .row { margin-top: 10px; }
+  .row label { color: var(--muted); width: 6.6em; flex: none; white-space: nowrap; }
+  .row input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
+  .row .val { width: 4.2em; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+
+  #gauge { position: relative; height: 12px; border-radius: 99px; background: #2a2c52; overflow: hidden; margin-top: 12px; }
+  #gaugeFill { position: absolute; inset: 0 100% 0 0; background: linear-gradient(90deg, #4ad6a0, #ffd166 55%, #ff6b6b); transition: right .04s linear; }
+  #gaugeMark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; box-shadow: 0 0 6px #fff; left: 50%; }
+  #gaugeText { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+  #help { right: 12px; bottom: 12px; padding: 11px 14px; font-size: .74rem; color: var(--muted); line-height: 1.9; width: 270px; }
+  #help div { white-space: nowrap; }
+  #help b { color: var(--text); font-weight: 600; }
+  @media (max-width: 720px) { #help { display: none; } }
+
+  #flash {
+    position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%) scale(.85);
+    z-index: 9; font-size: clamp(2rem, 9vw, 3.6rem); font-weight: 800; letter-spacing: .06em;
+    color: #fff; text-shadow: 0 0 24px rgba(124,108,255,.9); opacity: 0; pointer-events: none;
+  }
+  #flash.show { animation: pop .9s ease-out; }
+  @keyframes pop {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(.7); }
+    18% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); }
+    70% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-58%) scale(1); }
+  }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: var(--bg); text-align: center; padding: 24px; transition: opacity .4s ease;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlay .spin { font-size: 2.6rem; animation: bounce 1s infinite ease-in-out; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+  #overlay p { color: var(--muted); font-size: .84rem; margin: 12px 0 0; line-height: 1.8; }
+  #overlay code { background: #22243f; padding: 1px 6px; border-radius: 5px; font-size: .8em; }
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+
+<div id="flash">SWISH!</div>
+
+<div class="ui" id="topbar">
+  <div class="panel" id="title">
+    <h1>🏀 3Dフリースロー</h1>
+    <p>Three.js + cannon-es（実寸コート）<br><a href="../index.html">← static-pages</a></p>
+  </div>
+  <div class="panel" id="views">
+    <button data-view="shooter" aria-pressed="true">正面</button>
+    <button data-view="side">サイド</button>
+    <button data-view="low">ななめ</button>
+    <button data-view="top">真上</button>
+  </div>
+</div>
+
+<div class="ui panel" id="hud">
+  <div class="row">
+    <label for="angle">角度</label>
+    <input id="angle" type="range" min="30" max="72" step="1" value="52">
+    <span class="val" id="angleVal">52°</span>
+  </div>
+  <div class="row">
+    <label for="spin">バックスピン</label>
+    <input id="spin" type="range" min="0" max="30" step="1" value="16">
+    <span class="val" id="spinVal">16</span>
+  </div>
+  <div class="row">
+    <label for="rest">リング反発</label>
+    <input id="rest" type="range" min="0" max="80" step="1" value="42">
+    <span class="val" id="restVal">0.42</span>
+  </div>
+  <div id="gauge"><div id="gaugeFill"></div><div id="gaugeMark" title="リング中心を通る計算上の初速（空気抵抗なし）"></div></div>
+  <div id="gaugeText"><span id="powerVal">パワー 0%</span><span id="speedVal">0.0 m/s</span></div>
+</div>
+
+<div class="ui panel" id="help">
+  <div><b>上へドラッグ</b> … パワー</div>
+  <div><b>左右にドラッグ</b> … 狙い</div>
+  <div><b>指を離す</b> … シュート</div>
+  <div><b>Space</b> 長押し→離す でも可</div>
+  <div><b>右ドラッグ / ホイール</b> … カメラ</div>
+  <div><b>1〜4</b> … 視点切替 ／ <b>R</b> … 戻す</div>
+</div>
+
+<div id="overlay">
+  <div>
+    <div class="spin">🏀</div>
+    <p id="overlayMsg">CDN からライブラリを読み込み中…</p>
+  </div>
+</div>
+
+<script type="module">
+// =============================================================
+//  3Dフリースロー
+//  - 描画: Three.js  /  物理: cannon-es（どちらもCDN読み込み）
+//  - コートやリングの寸法はFIBA規格の実寸（メートル）に合わせている
+// =============================================================
+
+const overlay = document.getElementById('overlay');
+const overlayMsg = document.getElementById('overlayMsg');
+
+/** 同じライブラリを複数CDNから順に試す（1つ落ちても動くように） */
+async function loadModule(urls) {
+  let lastError;
+  for (const url of urls) {
+    try { return await import(url); } catch (e) { lastError = e; }
+  }
+  throw lastError;
+}
+
+let THREE, CANNON;
+try {
+  [THREE, CANNON] = await Promise.all([
+    loadModule([
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+      'https://unpkg.com/three@0.160.0/build/three.module.js',
+    ]),
+    loadModule([
+      'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js',
+      'https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js',
+      'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/+esm',
+    ]),
+  ]);
+} catch (e) {
+  overlayMsg.innerHTML = 'ライブラリの読み込みに失敗しました。<br>ネットワーク（<code>cdn.jsdelivr.net</code> / <code>unpkg.com</code>）への接続を確認してください。';
+  throw e;
+}
+
+// ---------------------------------------------------------------
+// 寸法（単位: m）
+// ---------------------------------------------------------------
+const RIM_Y      = 3.05;    // リングの高さ
+const RIM_R      = 0.2286;  // リング半径（内径45.72cm）
+const RIM_TUBE   = 0.02;    // リングの鉄の太さ
+const RIM_Z      = 0.3786;  // バックボード前面からリング中心まで（0.15 + 半径）
+const BOARD_W    = 1.80;
+const BOARD_H    = 1.05;
+const BOARD_BOT  = 2.90;    // バックボード下端の高さ
+const BALL_R     = 0.119;   // 7号球
+const BALL_MASS  = 0.62;
+const FT_Z       = 4.60;    // フリースローライン（バックボード前面からの距離）
+const KEY_HALF_W = 2.45;    // 制限区域の半幅
+const ENDLINE_Z  = -1.20;   // エンドライン
+const GRAV       = 9.81;
+
+// バックボード前面を z = 0、シューター側を +z とする
+const HOOP    = new THREE.Vector3(0, RIM_Y, RIM_Z);
+const RELEASE = new THREE.Vector3(0, 1.95, FT_Z + 0.02); // ボールを離す位置
+
+// ---------------------------------------------------------------
+// Three.js 側のセットアップ
+// ---------------------------------------------------------------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0d0e1c');
+scene.fog = new THREE.Fog('#0d0e1c', 10, 34);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+
+scene.add(new THREE.HemisphereLight('#9fb4ff', '#2a1c12', 1.1));
+scene.add(new THREE.AmbientLight('#ffffff', 0.25));
+
+const sun = new THREE.DirectionalLight('#fff4e2', 2.6);
+sun.position.set(5.5, 11, 7.5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 32;
+sun.shadow.camera.left = -9;
+sun.shadow.camera.right = 9;
+sun.shadow.camera.top = 9;
+sun.shadow.camera.bottom = -9;
+sun.shadow.bias = -0.0006;
+sun.target.position.set(0, 2, 1.5);
+scene.add(sun, sun.target);
+
+// リング側からの補助光（バックボード周りが暗くなりすぎないように）
+const fill = new THREE.DirectionalLight('#8ea2ff', 0.5);
+fill.position.set(-6, 6, -4);
+scene.add(fill);
+
+// ---------------------------------------------------------------
+// 物理世界（cannon-es）
+// ---------------------------------------------------------------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -GRAV, 0) });
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 14;
+world.defaultContactMaterial.friction = 0.35;
+world.defaultContactMaterial.restitution = 0.4;
+
+const matBall  = new CANNON.Material('ball');
+const matRim   = new CANNON.Material('rim');
+const matBoard = new CANNON.Material('board');
+const matFloor = new CANNON.Material('floor');
+
+// リングは鉄なので摩擦が効く。バックスピンが効くのはここ。
+const cmRim = new CANNON.ContactMaterial(matBall, matRim,   { friction: 0.5,  restitution: 0.42 });
+const cmBrd = new CANNON.ContactMaterial(matBall, matBoard, { friction: 0.28, restitution: 0.55 });
+const cmFlr = new CANNON.ContactMaterial(matBall, matFloor, { friction: 0.45, restitution: 0.76 });
+world.addContactMaterial(cmRim);
+world.addContactMaterial(cmBrd);
+world.addContactMaterial(cmFlr);
+
+// ---------------------------------------------------------------
+// コート（床とライン）
+// ---------------------------------------------------------------
+const floorMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.MeshStandardMaterial({ color: '#a9703c', roughness: 0.72, metalness: 0.04 })
+);
+floorMesh.rotation.x = -Math.PI / 2;
+floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+
+const floorBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: matFloor });
+floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+floorBody.tag = 'floor';
+world.addBody(floorBody);
+
+const lineMat = new THREE.MeshBasicMaterial({ color: '#f2f4ff', transparent: true, opacity: 0.85 });
+
+/** 床に白線（細い板）を1本置く */
+function addLine(w, d, x, z) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), lineMat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.006, z);
+  scene.add(m);
+  return m;
+}
+
+const LW = 0.05; // ライン幅
+addLine(15, LW, 0, ENDLINE_Z);                                    // エンドライン
+addLine(LW, FT_Z - ENDLINE_Z, -KEY_HALF_W, (FT_Z + ENDLINE_Z) / 2); // 制限区域 左
+addLine(LW, FT_Z - ENDLINE_Z,  KEY_HALF_W, (FT_Z + ENDLINE_Z) / 2); // 制限区域 右
+addLine(KEY_HALF_W * 2, LW, 0, FT_Z);                             // フリースローライン
+
+// 制限区域の塗り
+const paint = new THREE.Mesh(
+  new THREE.PlaneGeometry(KEY_HALF_W * 2, FT_Z - ENDLINE_Z),
+  new THREE.MeshStandardMaterial({ color: '#3a4ea8', roughness: 0.85, transparent: true, opacity: 0.5 })
+);
+paint.rotation.x = -Math.PI / 2;
+paint.position.set(0, 0.004, (FT_Z + ENDLINE_Z) / 2);
+paint.receiveShadow = true;
+scene.add(paint);
+
+/** 床に円弧（リング状の板）を置く。ローカル+Y が world -Z に向く点に注意 */
+function addArc(inner, outer, x, z, thetaStart, thetaLength) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 96, 1, thetaStart, thetaLength), lineMat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.006, z);
+  scene.add(m);
+  return m;
+}
+addArc(1.75, 1.80, 0, FT_Z, 0, Math.PI * 2);                       // フリースローサークル
+addArc(6.70, 6.75, 0, RIM_Z, Math.PI * 1.5 - 1.2, 2.4);            // 3ポイントライン
+
+// ---------------------------------------------------------------
+// バックボード
+// ---------------------------------------------------------------
+const boardGroup = new THREE.Group();
+scene.add(boardGroup);
+
+const boardGlass = new THREE.Mesh(
+  new THREE.BoxGeometry(BOARD_W, BOARD_H, 0.06),
+  new THREE.MeshStandardMaterial({
+    color: '#dfe6ff', roughness: 0.12, metalness: 0.0,
+    transparent: true, opacity: 0.34,
+  })
+);
+boardGlass.position.set(0, BOARD_BOT + BOARD_H / 2, -0.03);
+boardGlass.castShadow = true;
+boardGroup.add(boardGlass);
+
+/** バックボードの枠と内側の四角を canvas で描いてテクスチャにする */
+function makeBoardTexture() {
+  const W = 1024, H = Math.round(1024 * BOARD_H / BOARD_W);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, W, H);
+  const px = W / BOARD_W; // 1mあたりのピクセル数
+
+  g.strokeStyle = '#ff5a3c';
+  g.lineWidth = 0.05 * px;
+  g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, W - g.lineWidth, H - g.lineWidth);
+
+  // 内側の四角（0.59 x 0.45、下辺がリングと同じ高さ）
+  const bw = 0.59 * px, bh = 0.45 * px;
+  const bottom = H - (RIM_Y - BOARD_BOT) * px;
+  g.strokeRect((W - bw) / 2, bottom - bh, bw, bh);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+const boardLines = new THREE.Mesh(
+  new THREE.PlaneGeometry(BOARD_W, BOARD_H),
+  new THREE.MeshBasicMaterial({ map: makeBoardTexture(), transparent: true, depthWrite: false })
+);
+boardLines.position.set(0, BOARD_BOT + BOARD_H / 2, 0.002);
+boardLines.renderOrder = 2;
+boardGroup.add(boardLines);
+
+const boardBody = new CANNON.Body({
+  mass: 0,
+  shape: new CANNON.Box(new CANNON.Vec3(BOARD_W / 2, BOARD_H / 2, 0.03)),
+  material: matBoard,
+});
+boardBody.position.set(0, BOARD_BOT + BOARD_H / 2, -0.03);
+boardBody.tag = 'board';
+world.addBody(boardBody);
+
+// 支柱（見た目だけ。物理には入れていない）
+const poleMat = new THREE.MeshStandardMaterial({ color: '#2c2f4e', roughness: 0.5, metalness: 0.6 });
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 4.1, 16), poleMat);
+pole.position.set(0, 2.05, -1.9);
+pole.castShadow = true;
+scene.add(pole);
+const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 1.9), poleMat);
+arm.position.set(0, 3.5, -0.98);
+arm.castShadow = true;
+scene.add(arm);
+const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.14, 1.6), poleMat);
+base.position.set(0, 0.07, -2.2);
+base.receiveShadow = true; base.castShadow = true;
+scene.add(base);
+
+// ---------------------------------------------------------------
+// リング（見た目はトーラス、物理は小さい球を円周に並べた複合ボディ）
+// ---------------------------------------------------------------
+const rimMesh = new THREE.Mesh(
+  new THREE.TorusGeometry(RIM_R, RIM_TUBE, 16, 64),
+  new THREE.MeshStandardMaterial({ color: '#ff6a33', roughness: 0.35, metalness: 0.75 })
+);
+rimMesh.rotation.x = Math.PI / 2;
+rimMesh.position.copy(HOOP);
+rimMesh.castShadow = true;
+scene.add(rimMesh);
+
+// リングとバックボードをつなぐ金具
+const neck = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.16), new THREE.MeshStandardMaterial({ color: '#ff6a33', roughness: 0.4, metalness: 0.7 }));
+neck.position.set(0, RIM_Y, 0.08);
+scene.add(neck);
+
+const rimBody = new CANNON.Body({ mass: 0, material: matRim });
+const RIM_SEGS = 28;
+for (let i = 0; i < RIM_SEGS; i++) {
+  const a = (i / RIM_SEGS) * Math.PI * 2;
+  rimBody.addShape(new CANNON.Sphere(RIM_TUBE), new CANNON.Vec3(Math.cos(a) * RIM_R, 0, Math.sin(a) * RIM_R));
+}
+rimBody.position.set(HOOP.x, HOOP.y, HOOP.z);
+rimBody.tag = 'rim';
+world.addBody(rimBody);
+
+// ---------------------------------------------------------------
+// ネット（見た目のみ。ボールは通り抜けるが、通過時に揺れる）
+// ---------------------------------------------------------------
+const net = (() => {
+  const strands = 12, rows = 6, len = 0.42, botR = RIM_R * 0.62;
+  const pt = (row, i) => {
+    const t = row / rows;
+    const r = RIM_R + (botR - RIM_R) * t;
+    const a = (i / strands) * Math.PI * 2 + (row % 2) * (Math.PI / strands);
+    return new THREE.Vector3(Math.cos(a) * r, -len * t, Math.sin(a) * r);
+  };
+  const pts = [];
+  for (let row = 0; row < rows; row++) {
+    for (let i = 0; i < strands; i++) {
+      const p = pt(row, i);
+      pts.push(p, pt(row + 1, i));
+      pts.push(p, pt(row + 1, (i - 1 + strands) % strands));
+    }
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mesh = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55 }));
+  mesh.position.copy(HOOP);
+  scene.add(mesh);
+  return mesh;
+})();
+let netPulse = 0;
+
+// ---------------------------------------------------------------
+// シューター（見た目だけのシルエット。物理には入れていない）
+// ---------------------------------------------------------------
+(() => {
+  const skin = new THREE.MeshStandardMaterial({ color: '#1b1d38', roughness: 0.85 });
+  const wear = new THREE.MeshStandardMaterial({ color: '#2f3566', roughness: 0.9 });
+  const g = new THREE.Group();
+  g.position.set(0, 0, FT_Z + 0.34); // フリースローラインのすぐ後ろに立つ
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.44, 6, 14), wear);
+  torso.position.y = 1.16;
+  g.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 14), skin);
+  head.position.y = 1.58;
+  g.add(head);
+
+  [-0.1, 0.1].forEach((x) => {
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.62, 6, 12), skin);
+    leg.position.set(x, 0.47, 0);
+    g.add(leg);
+  });
+
+  // 腕はボールを離す位置に向かって伸ばす
+  const hand = RELEASE.clone().sub(g.position);
+  [-0.2, 0.2].forEach((x) => {
+    const shoulder = new THREE.Vector3(x, 1.36, 0);
+    const dir = hand.clone().sub(shoulder);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, Math.max(0.05, dir.length() - 0.11), 6, 12), skin);
+    arm.position.copy(shoulder).add(dir.clone().multiplyScalar(0.5));
+    arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    g.add(arm);
+  });
+
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  scene.add(g);
+})();
+
+// ---------------------------------------------------------------
+// ボール
+// ---------------------------------------------------------------
+const ballMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(BALL_R, 40, 28),
+  new THREE.MeshStandardMaterial({ color: '#e0702f', roughness: 0.85, metalness: 0.02 })
+);
+ballMesh.castShadow = true;
+scene.add(ballMesh);
+
+// 縫い目（回転が見えるように3本の輪をボールの子にする）
+const seamMat = new THREE.MeshStandardMaterial({ color: '#2b1408', roughness: 0.9 });
+const seamGeo = new THREE.TorusGeometry(BALL_R + 0.0008, 0.0055, 8, 56);
+[[Math.PI / 2, 0], [0, 0], [0, Math.PI / 2]].forEach(([rx, ry]) => {
+  const s = new THREE.Mesh(seamGeo, seamMat);
+  s.rotation.set(rx, ry, 0);
+  ballMesh.add(s);
+});
+
+const ballBody = new CANNON.Body({
+  mass: BALL_MASS,
+  shape: new CANNON.Sphere(BALL_R),
+  material: matBall,
+  linearDamping: 0.02,   // 空気抵抗のかわり
+  angularDamping: 0.15,
+});
+ballBody.tag = 'ball';
+ballBody.position.set(RELEASE.x, RELEASE.y, RELEASE.z);
+world.addBody(ballBody);
+
+// ---------------------------------------------------------------
+// 軌跡（直前のシュートの弧を残す）
+// ---------------------------------------------------------------
+const TRAIL_MAX = 900;
+const trailPos = new Float32Array(TRAIL_MAX * 3);
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+trailGeo.setDrawRange(0, 0);
+const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: '#7c6cff', transparent: true, opacity: 0.85 }));
+trail.frustumCulled = false;
+scene.add(trail);
+let trailCount = 0, trailTick = 0;
+
+function resetTrail() { trailCount = 0; trailGeo.setDrawRange(0, 0); }
+function pushTrail(p) {
+  if (trailCount >= TRAIL_MAX) return;
+  trailPos[trailCount * 3]     = p.x;
+  trailPos[trailCount * 3 + 1] = p.y;
+  trailPos[trailCount * 3 + 2] = p.z;
+  trailCount++;
+  trailGeo.setDrawRange(0, trailCount);
+  trailGeo.attributes.position.needsUpdate = true;
+  trailGeo.computeBoundingSphere();
+}
+
+// 着弾点のマーカー（狙いが分かるように）
+const aimRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.05, 0.075, 32),
+  new THREE.MeshBasicMaterial({ color: '#7c6cff', transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+);
+aimRing.rotation.x = -Math.PI / 2;
+aimRing.visible = false;
+scene.add(aimRing);
+
+// ---------------------------------------------------------------
+// 効果音（Web Audio で合成。音声ファイルは持たない）
+// ---------------------------------------------------------------
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* 無音で続行 */ }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep({ freq = 440, type = 'sine', dur = 0.12, gain = 0.2, sweep = 0 }) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const amp = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  if (sweep) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq * sweep), t + dur);
+  amp.gain.setValueAtTime(0.0001, t);
+  amp.gain.exponentialRampToValueAtTime(gain, t + 0.008);
+  amp.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(amp).connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur + 0.02);
+}
+
+ballBody.addEventListener('collide', (e) => {
+  const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+  if (v < 0.6) return;
+  const g = Math.min(0.28, v * 0.035);
+  const tag = e.body.tag;
+  if (tag === 'rim')        beep({ freq: 1500, type: 'square',   dur: 0.09, gain: g * 0.8, sweep: 0.55 });
+  else if (tag === 'board') beep({ freq: 190,  type: 'triangle', dur: 0.13, gain: g });
+  else                      beep({ freq: 120,  type: 'sine',     dur: 0.16, gain: g, sweep: 0.7 });
+});
+
+// ---------------------------------------------------------------
+// カメラ（プリセット + 右ドラッグで首振り、ホイールでズーム）
+// ---------------------------------------------------------------
+const VIEWS = {
+  shooter: { target: new THREE.Vector3(0, 2.45, 1.6), radius: 7.2, theta: 0,            phi: 1.38 },
+  side:    { target: new THREE.Vector3(0, 2.30, 2.2), radius: 8.4, theta: Math.PI / 2,  phi: 1.40 },
+  low:     { target: new THREE.Vector3(0, 2.30, 1.8), radius: 7.4, theta: 0.62,         phi: 1.46 },
+  top:     { target: new THREE.Vector3(0, 3.05, 1.0), radius: 4.6, theta: 0,            phi: 0.34 },
+};
+const cam = { target: VIEWS.shooter.target.clone(), radius: VIEWS.shooter.radius, theta: VIEWS.shooter.theta, phi: VIEWS.shooter.phi };
+const camGoal = { target: cam.target.clone(), radius: cam.radius, theta: cam.theta, phi: cam.phi };
+
+function setView(name) {
+  const v = VIEWS[name];
+  if (!v) return;
+  camGoal.target.copy(v.target);
+  camGoal.radius = v.radius;
+  camGoal.theta = v.theta;
+  camGoal.phi = v.phi;
+  document.querySelectorAll('#views button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === name)));
+}
+document.querySelectorAll('#views button').forEach((b) => {
+  b.addEventListener('click', () => setView(b.dataset.view));
+});
+
+function updateCamera(dt) {
+  const k = 1 - Math.exp(-dt * 7); // フレームレートに依存しない追従
+  cam.target.lerp(camGoal.target, k);
+  cam.radius += (camGoal.radius - cam.radius) * k;
+  cam.theta  += (camGoal.theta  - cam.theta)  * k;
+  cam.phi    += (camGoal.phi    - cam.phi)    * k;
+  const sp = Math.sin(cam.phi);
+  camera.position.set(
+    cam.target.x + cam.radius * sp * Math.sin(cam.theta),
+    cam.target.y + cam.radius * Math.cos(cam.phi),
+    cam.target.z + cam.radius * sp * Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.target);
+}
+
+// ---------------------------------------------------------------
+// シュート
+// ---------------------------------------------------------------
+const MIN_SPEED = 4.5, MAX_SPEED = 11.0;
+const MAX_YAW = THREE.MathUtils.degToRad(9); // 左右のブレ幅
+
+const el = {
+  angle: document.getElementById('angle'),
+  angleVal: document.getElementById('angleVal'),
+  spin: document.getElementById('spin'),
+  spinVal: document.getElementById('spinVal'),
+  rest: document.getElementById('rest'),
+  restVal: document.getElementById('restVal'),
+  fill: document.getElementById('gaugeFill'),
+  mark: document.getElementById('gaugeMark'),
+  power: document.getElementById('powerVal'),
+  speed: document.getElementById('speedVal'),
+  flash: document.getElementById('flash'),
+};
+
+let flying = false;
+let power = 0, yaw = 0;
+let restTimer = 0, flightTime = 0, scored = false, landedAt = null;
+
+/** 空気抵抗を無視したときの「ちょうど入る初速」 */
+function idealSpeed(elev) {
+  const dx = Math.hypot(HOOP.x - RELEASE.x, HOOP.z - RELEASE.z);
+  const dy = HOOP.y - RELEASE.y;
+  const c = Math.cos(elev);
+  const denom = 2 * c * c * (dx * Math.tan(elev) - dy);
+  if (denom <= 0) return NaN;
+  return Math.sqrt(GRAV * dx * dx / denom);
+}
+
+function refreshHud() {
+  const elev = THREE.MathUtils.degToRad(Number(el.angle.value));
+  el.angleVal.textContent = el.angle.value + '°';
+  el.spinVal.textContent = el.spin.value;
+  const r = Number(el.rest.value) / 100;
+  el.restVal.textContent = r.toFixed(2);
+  cmRim.restitution = r;
+
+  const ideal = idealSpeed(elev);
+  if (Number.isFinite(ideal)) {
+    const p = THREE.MathUtils.clamp((ideal - MIN_SPEED) / (MAX_SPEED - MIN_SPEED), 0, 1);
+    el.mark.style.left = (p * 100) + '%';
+    el.mark.style.display = '';
+  } else {
+    el.mark.style.display = 'none'; // その角度では届かない
+  }
+
+  el.fill.style.right = ((1 - power) * 100) + '%';
+  el.power.textContent = 'パワー ' + Math.round(power * 100) + '%';
+  el.speed.textContent = (MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power).toFixed(1) + ' m/s';
+}
+[el.angle, el.spin, el.rest].forEach((i) => i.addEventListener('input', refreshHud));
+
+function holdBall() {
+  ballBody.position.set(RELEASE.x, RELEASE.y, RELEASE.z);
+  ballBody.velocity.setZero();
+  ballBody.angularVelocity.setZero();
+  ballBody.force.setZero();
+  ballBody.torque.setZero();
+}
+
+function resetBall() {
+  flying = false;
+  scored = false;
+  flightTime = 0;
+  restTimer = 0;
+  landedAt = null;
+  holdBall();
+  ballBody.wakeUp();
+  aimRing.visible = false;
+}
+
+function shoot() {
+  if (flying || power <= 0.02) { power = 0; refreshHud(); return; }
+  initAudio();
+
+  const elev = THREE.MathUtils.degToRad(Number(el.angle.value));
+  const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
+  const spin = Number(el.spin.value);
+
+  // シューター→リングの水平方向を yaw だけ左右にずらす
+  const dir = new THREE.Vector3(HOOP.x - RELEASE.x, 0, HOOP.z - RELEASE.z).normalize();
+  dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), -yaw);
+
+  const v = dir.clone().multiplyScalar(Math.cos(elev) * speed);
+  v.y = Math.sin(elev) * speed;
+
+  resetTrail();
+  holdBall();
+  ballBody.wakeUp();
+  ballBody.velocity.set(v.x, v.y, v.z);
+
+  // バックスピン：進行方向の右向きを軸にして回す
+  const axis = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  ballBody.angularVelocity.set(axis.x * spin, axis.y * spin, axis.z * spin);
+
+  flying = true;
+  scored = false;
+  flightTime = 0;
+  restTimer = 0;
+  landedAt = null;
+  trailTick = 0;
+  aimRing.visible = false;
+  beep({ freq: 320, type: 'sine', dur: 0.07, gain: 0.12, sweep: 1.6 });
+
+  power = 0;
+  refreshHud();
+}
+
+// ---- ポインタ操作（左ドラッグ＝シュート / 右ドラッグ＝カメラ） ----
+const canvas = renderer.domElement;
+let dragMode = null, dragId = null, startX = 0, startY = 0, lastX = 0, lastY = 0;
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (dragMode) return;
+  initAudio();
+  dragId = e.pointerId;
+  canvas.setPointerCapture(dragId);
+  startX = lastX = e.clientX;
+  startY = lastY = e.clientY;
+  dragMode = (e.button === 2 || e.button === 1) ? 'orbit' : 'shoot';
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== dragId) return;
+  if (dragMode === 'orbit') {
+    camGoal.theta -= (e.clientX - lastX) * 0.006;
+    camGoal.phi = THREE.MathUtils.clamp(camGoal.phi - (e.clientY - lastY) * 0.005, 0.16, 1.54);
+    lastX = e.clientX; lastY = e.clientY;
+  } else if (dragMode === 'shoot') {
+    const dy = startY - e.clientY;                 // 上へ引くほど強い
+    const dx = e.clientX - startX;                 // 右へずらすほど右狙い
+    power = THREE.MathUtils.clamp(dy / (window.innerHeight * 0.34), 0, 1);
+    yaw = THREE.MathUtils.clamp(dx / (window.innerWidth * 0.26), -1, 1) * MAX_YAW;
+    refreshHud();
+  }
+});
+
+function endDrag(e) {
+  if (e.pointerId !== dragId) return;
+  if (dragMode === 'shoot') shoot();
+  try { canvas.releasePointerCapture(dragId); } catch (err) { /* 解放済み */ }
+  dragMode = null; dragId = null;
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camGoal.radius = THREE.MathUtils.clamp(camGoal.radius + e.deltaY * 0.006, 2.2, 20);
+}, { passive: false });
+
+// ---- キーボード操作 ----
+let charging = false;
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!charging) { charging = true; power = 0; initAudio(); }
+  } else if (e.code === 'KeyR') {
+    resetBall(); resetTrail();
+  } else if (e.code === 'ArrowLeft') {
+    yaw = Math.max(-MAX_YAW, yaw - THREE.MathUtils.degToRad(0.7));
+  } else if (e.code === 'ArrowRight') {
+    yaw = Math.min(MAX_YAW, yaw + THREE.MathUtils.degToRad(0.7));
+  } else if (e.code === 'Digit1') { setView('shooter'); }
+  else if (e.code === 'Digit2') { setView('side'); }
+  else if (e.code === 'Digit3') { setView('low'); }
+  else if (e.code === 'Digit4') { setView('top'); }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    charging = false;
+    shoot();
+  }
+});
+
+// ---------------------------------------------------------------
+// メインループ
+// ---------------------------------------------------------------
+const FIXED = 1 / 240; // リング（細い棒）をすり抜けないよう細かく刻む
+const clock = new THREE.Clock();
+const prevPos = new THREE.Vector3().copy(RELEASE);
+
+function flash(text) {
+  el.flash.textContent = text;
+  el.flash.classList.remove('show');
+  void el.flash.offsetWidth; // アニメーションを再生し直す
+  el.flash.classList.add('show');
+}
+
+function checkPassThrough() {
+  if (scored) return;
+  const p = ballBody.position;
+  const crossed = prevPos.y > RIM_Y && p.y <= RIM_Y && ballBody.velocity.y < 0;
+  if (!crossed) return;
+  const dx = p.x - HOOP.x, dz = p.z - HOOP.z;
+  if (Math.hypot(dx, dz) < RIM_R - 0.02) {
+    scored = true;
+    netPulse = 1;
+    flash(flightTime < 1.6 && trailCount > 0 ? 'SWISH!' : 'IN!');
+    if (audioCtx) {
+      beep({ freq: 660, type: 'sine', dur: 0.14, gain: 0.18 });
+      setTimeout(() => beep({ freq: 990, type: 'sine', dur: 0.22, gain: 0.16 }), 90);
+    }
+  }
+}
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  if (charging) { power = Math.min(1, power + dt / 1.15); refreshHud(); }
+
+  if (!flying) holdBall();
+  world.step(FIXED, dt, 12);
+  if (!flying) holdBall();
+
+  ballMesh.position.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+  ballMesh.quaternion.set(ballBody.quaternion.x, ballBody.quaternion.y, ballBody.quaternion.z, ballBody.quaternion.w);
+
+  if (flying) {
+    flightTime += dt;
+    checkPassThrough();
+    prevPos.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+
+    if (++trailTick % 2 === 0) pushTrail(ballMesh.position);
+
+    const speed = ballBody.velocity.length();
+    if (ballBody.position.y < BALL_R + 0.05 && speed < 0.7) restTimer += dt; else restTimer = 0;
+    if (landedAt === null && ballBody.position.y < BALL_R + 0.06) landedAt = flightTime;
+
+    // 止まった / 着地して少し経った / 転がって行った なら自動で戻す
+    const rolledAway = Math.abs(ballBody.position.x) > 9 || ballBody.position.z > 9 || ballBody.position.z < -9;
+    if (restTimer > 0.7 || (landedAt !== null && flightTime - landedAt > 2.0) || flightTime > 9 || rolledAway) {
+      aimRing.position.set(ballBody.position.x, 0.01, ballBody.position.z);
+      aimRing.visible = true;
+      resetBall();
+      aimRing.visible = true; // resetBall で消えるので戻す
+    }
+  }
+
+  // ネットの揺れ
+  if (netPulse > 0) {
+    netPulse = Math.max(0, netPulse - dt * 2.2);
+    const k = Math.sin(netPulse * Math.PI);
+    net.scale.set(1 + k * 0.12, 1 + k * 0.45, 1 + k * 0.12);
+  } else {
+    net.scale.set(1, 1, 1);
+  }
+
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+refreshHud();
+resetBall();
+setView('shooter');
+updateCamera(1);
+tick();
+overlay.classList.add('hidden');
+</script>
+</body>
+</html>
