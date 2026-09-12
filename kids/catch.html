@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>どうぶつつかまえ ｜ こどもあそび</title>
+<meta name="description" content="のはらを歩きまわるどうぶつを、さわってつかまえるあそび。名前と鳴き声を教えてくれます。1歳から遊べます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    font-family: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4", "Yu Gothic", system-ui, sans-serif;
+    background: #cdeeb0;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* 子どもが触っても画面が変わらないよう、戻るボタンは長押しで反応する */
+  .home {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 10;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,.88); color: #5f7d4a; font-size: 22px; line-height: 1;
+    display: grid; place-items: center; overflow: hidden;
+  }
+  .home i { position: absolute; inset: 0; background: #a8dc7d; transform: scaleY(0); transform-origin: bottom; }
+  .home span { position: relative; }
+
+  .hint {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 10;
+    background: rgba(255,255,255,.72); color: #5f7d4a; font-size: 15px; font-weight: 700;
+    padding: 7px 18px; border-radius: 99px; pointer-events: none; white-space: nowrap;
+    transition: opacity .6s ease;
+  }
+  .cheer {
+    position: fixed; left: 50%; top: 20%; z-index: 9; pointer-events: none;
+    translate: -50% -50%; opacity: 0; scale: .6; white-space: nowrap;
+    font-size: clamp(1.8rem, 8vw, 3.8rem); font-weight: 800; letter-spacing: .06em;
+    color: #3f8f3f; text-shadow: 0 0 14px #fff, 0 4px 0 rgba(255,255,255,.95);
+  }
+  .cheer.show { animation: pop 2s ease forwards; }
+  @keyframes pop {
+    0%   { opacity: 0; scale: .5; }
+    14%  { opacity: 1; scale: 1.12; }
+    26%  { scale: 1; }
+    80%  { opacity: 1; scale: 1; }
+    100% { opacity: 0; scale: 1.05; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button class="home" id="home" aria-label="ホームにもどる（ながおし）"><i id="homeFill"></i><span>🏠</span></button>
+<div class="hint" id="hint">どうぶつを さわって つかまえてね</div>
+<div class="cheer" id="cheer"></div>
+
+<script>
+(() => {
+  'use strict';
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  let SIZE = 96, basketY = 0, skyY = 0;
+
+  const ROUND = 6;   // 1回にでてくるどうぶつの数
+
+  // name: 読み上げる名前 / voice: 鳴き声 / notes: 鳴き声の音程（Hz）
+  // hop: ぴょんぴょん跳ねる高さ / sp: 歩く速さ（どれもゆっくりにしてある）
+  const POOL = [
+    { emoji: '🐰', name: 'うさぎ',  voice: 'ぴょんぴょん', notes: [880, 1100],             dur: .12, hop: 1.0, sp: .013 },
+    { emoji: '🐱', name: 'ねこ',    voice: 'にゃあ',       notes: [660, 880],              dur: .22, hop: .30, sp: .010 },
+    { emoji: '🐶', name: 'いぬ',    voice: 'わんわん',     notes: [330, 280],              dur: .16, hop: .40, sp: .012 },
+    { emoji: '🐸', name: 'かえる',  voice: 'けろけろ',     notes: [420, 360, 420, 360],    dur: .11, hop: 1.2, sp: .009 },
+    { emoji: '🐤', name: 'ひよこ',  voice: 'ぴよぴよ',     notes: [1200, 1400, 1200],      dur: .09, hop: .55, sp: .014 },
+    { emoji: '🐢', name: 'かめ',    voice: 'のっそり',     notes: [220, 200],              dur: .30, hop: .08, sp: .005 },
+    { emoji: '🐷', name: 'ぶた',    voice: 'ぶーぶー',     notes: [240, 210],              dur: .20, hop: .30, sp: .008 },
+    { emoji: '🐘', name: 'ぞう',    voice: 'ぱおーん',     notes: [300, 520, 480],         dur: .28, hop: .15, sp: .007 },
+    { emoji: '🦆', name: 'あひる',  voice: 'がーがー',     notes: [380, 320, 380],         dur: .15, hop: .35, sp: .011 },
+    { emoji: '🐭', name: 'ねずみ',  voice: 'ちゅうちゅう', notes: [1400, 1600, 1400],      dur: .08, hop: .45, sp: .015 },
+    { emoji: '🐻', name: 'くま',    voice: 'がおー',       notes: [160, 130],              dur: .40, hop: .18, sp: .008 },
+    { emoji: '🐥', name: 'ことり',  voice: 'ちゅんちゅん', notes: [1500, 1700, 1500],      dur: .08, hop: .70, sp: .013 },
+  ];
+  const FLOWERS = ['🌼', '🌷', '🍀', '🌸'];
+
+  const hint = document.getElementById('hint');
+  const animals = [];
+  const caught = [];
+  const parts = [];
+  const flowers = [];
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.floor(W * dpr);
+    cv.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // 小さな指でも押しやすいよう、どうぶつは大きめにする
+    SIZE = Math.max(56, Math.min(124, Math.min(W / 4.2, H / 6.4)));
+    basketY = H - Math.max(72, Math.min(120, H * 0.14));
+    hint.style.bottom = (H - basketY + 12) + 'px';
+    skyY = Math.max(60, H * 0.22);
+    for (const a of animals) {
+      a.x = Math.max(SIZE * .6, Math.min(W - SIZE * .6, a.x));
+      a.y = Math.max(skyY + SIZE * .4, Math.min(basketY - SIZE * .35, a.y));
+      a.tx = Math.max(SIZE * .6, Math.min(W - SIZE * .6, a.tx));
+      a.ty = Math.max(skyY + SIZE * .4, Math.min(basketY - SIZE * .35, a.ty));
+    }
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---- 音（外部ファイルなしで合成） ----
+  let ac = null;
+  function audio() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ac = new AC();
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(freq, type, dur, vol, slideTo, delay) {
+    const a = audio();
+    if (!a) return;
+    const t = a.currentTime + (delay || 0);
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(a.destination);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  function cry(a) {
+    const c = audio();
+    if (!c) return;
+    let t = c.currentTime + 0.01;
+    for (const f of a.notes) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 0.88, t + a.dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.24, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + a.dur);
+      o.connect(g).connect(c.destination);
+      o.start(t);
+      o.stop(t + a.dur + 0.02);
+      t += a.dur * 0.92;
+    }
+  }
+  function seTwinkle() { tone(1500 + Math.random() * 500, 'triangle', 0.18, 0.12); }
+  function seCatch() { tone(880, 'sine', 0.16, 0.2, 1320); }
+  function seCheer() {
+    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => tone(f, 'triangle', 0.32, 0.24, null, i * 0.09));
+  }
+
+  // ---- 読み上げ（ブラウザの音声合成。使えない環境では鳴き声だけ鳴る） ----
+  let jaVoice = null;
+  function pickVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const list = speechSynthesis.getVoices();
+    jaVoice = list.find((v) => v.lang && v.lang.toLowerCase().startsWith('ja')) || null;
+  }
+  if ('speechSynthesis' in window) {
+    pickVoice();
+    speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+  function say(text) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      u.rate = 0.85;
+      u.pitch = 1.35;
+      if (jaVoice) u.voice = jaVoice;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  // ---- どうぶつ ----
+  function newTarget(a) {
+    a.tx = SIZE * .6 + Math.random() * Math.max(1, W - SIZE * 1.2);
+    a.ty = skyY + SIZE * .4 + Math.random() * Math.max(1, basketY - skyY - SIZE * .75);
+    a.rest = Math.random() < .35 ? 40 + Math.random() * 90 : 0;
+  }
+
+  function startRound() {
+    animals.length = 0;
+    caught.length = 0;
+    const pool = POOL.slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (let i = 0; i < ROUND; i++) {
+      const src = pool[i % pool.length];
+      let px = 0, py = 0;
+      for (let tryCount = 0; tryCount < 30; tryCount++) {
+        px = SIZE * .6 + Math.random() * Math.max(1, W - SIZE * 1.2);
+        py = skyY + SIZE * .4 + Math.random() * Math.max(1, basketY - skyY - SIZE * .75);
+        if (animals.every((o) => Math.hypot(o.x - px, o.y - py) > SIZE)) break;
+      }
+      const a = Object.assign({}, src, {
+        x: px, y: py,
+        phase: Math.random() * Math.PI * 2,
+        face: Math.random() < .5 ? 1 : -1,
+        state: 'free', t: 0, scale: 0, slot: 0, fx: 0, fy: 0,
+      });
+      newTarget(a);
+      a.born = i * 6;   // 少しずつ現れる
+      animals.push(a);
+    }
+  }
+
+  function hearts(x, y) {
+    for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const s = 1.5 + Math.random() * 3.5;
+      parts.push({
+        x, y, vx: Math.cos(ang) * s, vy: Math.sin(ang) * s - 1.5, life: 1,
+        size: 8 + Math.random() * 12, emoji: Math.random() < .5 ? '💛' : '✨',
+      });
+    }
+  }
+  function sparkle(x, y) {
+    for (let i = 0; i < 7; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const s = 1 + Math.random() * 2.4;
+      parts.push({ x, y, vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, life: .8, size: 3 + Math.random() * 4, color: '#fff' });
+    }
+  }
+  function confetti() {
+    for (let i = 0; i < 80; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const s = 2 + Math.random() * 7;
+      parts.push({
+        x: W / 2, y: H * 0.2, vx: Math.cos(ang) * s, vy: Math.sin(ang) * s - 2, life: 1.4,
+        size: 4 + Math.random() * 6, color: ['#ffd166', '#ff8fab', '#8ecae6', '#b5e48c', '#cdb4db'][i % 5],
+      });
+    }
+  }
+
+  const cheerEl = document.getElementById('cheer');
+  let roundTimer = null;
+  function finishRound() {
+    if (roundTimer) return;
+    cheerEl.textContent = 'ぜんぶ つかまえた！';
+    cheerEl.classList.remove('show');
+    void cheerEl.offsetWidth;
+    cheerEl.classList.add('show');
+    confetti();
+    seCheer();
+    say('ぜんぶ つかまえたね。すごい');
+    // つかまえたどうぶつは、またのはらへ帰って遊びなおせる
+    roundTimer = setTimeout(() => { startRound(); roundTimer = null; }, 2600);
+  }
+
+  function catchAnimal(a) {
+    a.state = 'pop';
+    a.t = 0;
+    a.slot = caught.length;
+    caught.push(a);
+    hearts(a.x, a.y - SIZE * .2);
+    seCatch();
+    cry(a);
+    say(a.name + '、つかまえた');
+  }
+
+  function step(dt) {
+    for (const a of animals) {
+      if (a.born > 0) { a.born -= dt; continue; }
+      if (a.scale < 1) a.scale = Math.min(1, a.scale + 0.06 * dt);
+
+      if (a.state === 'free') {
+        if (a.rest > 0) { a.rest -= dt; continue; }
+        const dx = a.tx - a.x, dy = a.ty - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 6) { newTarget(a); continue; }
+        const v = SIZE * a.sp;
+        a.x += (dx / d) * v * dt;
+        a.y += (dy / d) * v * dt;
+        if (Math.abs(dx) > 2) a.face = dx > 0 ? 1 : -1;
+        a.phase += 0.16 * dt * (0.6 + a.sp * 40);
+      } else if (a.state === 'pop') {
+        a.t += dt;
+        if (a.t > 42) {
+          a.state = 'fly';
+          a.t = 0;
+          a.fx = a.x; a.fy = a.y;
+        }
+      } else if (a.state === 'fly') {
+        a.t += dt;
+        const p = Math.min(1, a.t / 30);
+        const e = p * p * (3 - 2 * p);
+        const dest = slotPos(a.slot);
+        a.x = a.fx + (dest.x - a.fx) * e;
+        a.y = a.fy + (dest.y - a.fy) * e - Math.sin(p * Math.PI) * SIZE * 0.6;
+        if (p >= 1) { a.state = 'in'; sparkle(a.x, a.y); }
+      }
+    }
+
+    // 重なっていると押し分けられないので、近づきすぎたどうぶつはそっと離れる
+    for (let i = 0; i < animals.length; i++) {
+      const a = animals[i];
+      if (a.state !== 'free' || a.born > 0) continue;
+      for (let j = i + 1; j < animals.length; j++) {
+        const b = animals[j];
+        if (b.state !== 'free' || b.born > 0) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) || 0.01;
+        const min = SIZE * 1.0;
+        if (d < min) {
+          const push = (min - d) / 2 * 0.7 * dt;
+          a.x -= (dx / d) * push; a.y -= (dy / d) * push;
+          b.x += (dx / d) * push; b.y += (dy / d) * push;
+        }
+      }
+      a.x = Math.max(SIZE * .5, Math.min(W - SIZE * .5, a.x));
+      a.y = Math.max(skyY + SIZE * .3, Math.min(basketY - SIZE * .3, a.y));
+    }
+
+    if (!roundTimer && animals.length && animals.every((a) => a.state === 'in')) finishRound();
+
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += 0.12 * dt; p.vx *= 0.99;
+      p.life -= 0.018 * dt;
+      if (p.life <= 0 || p.y > H + 40) parts.splice(i, 1);
+    }
+  }
+
+  function slotPos(i) {
+    const step = Math.min(SIZE * 0.62, (W - 24) / ROUND);
+    const total = step * ROUND;
+    return { x: (W - total) / 2 + step * (i + 0.5), y: basketY + (H - basketY) / 2 };
+  }
+
+  // ---- 描画 ----
+  function emoji(ch, x, y, size, face) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (face === -1) ctx.scale(-1, 1);
+    ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // 絵文字が白黒フォントで描かれる端末では fillStyle がそのまま乗るので、薄い色を引きずらないようにする
+    ctx.fillStyle = '#4a4a3a';
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+  }
+
+  function drawAnimal(a) {
+    if (a.born > 0) return;
+    let size = SIZE * a.scale;
+    let y = a.y;
+    if (a.state === 'free') {
+      // 歩いているあいだは、ぴょこぴょこ跳ねる
+      y -= Math.abs(Math.sin(a.phase)) * SIZE * 0.12 * a.hop;
+    } else if (a.state === 'pop') {
+      const p = Math.min(1, a.t / 42);
+      size *= 1 + Math.sin(p * Math.PI) * 0.55;
+    } else if (a.state === 'in') {
+      size *= 0.52;
+    } else if (a.state === 'fly') {
+      size *= 1 - 0.48 * Math.min(1, a.t / 30);
+    }
+
+    if (a.state === 'free' || a.state === 'pop') {
+      ctx.beginPath();
+      ctx.ellipse(a.x, a.y + size * 0.42, size * 0.3, size * 0.09, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(90,120,70,.18)';
+      ctx.fill();
+    }
+    emoji(a.emoji, a.x, y, size, a.state === 'free' ? a.face : 1);
+
+    if (a.state === 'pop') {
+      const label = a.name;
+      ctx.font = `800 ${Math.round(SIZE * 0.32)}px "Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(label).width;
+      const pad = SIZE * 0.18, hh = SIZE * 0.46;
+      const bx = Math.max(6, Math.min(W - tw - pad * 2 - 6, a.x - tw / 2 - pad));
+      const by = Math.max(6, a.y - SIZE * 1.05);
+      ctx.beginPath();
+      ctx.roundRect(bx, by, tw + pad * 2, hh, hh / 2);
+      ctx.fillStyle = 'rgba(95,125,74,.94)';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, bx + tw / 2 + pad, by + hh / 2);
+    }
+  }
+
+  function drawScene() {
+    const sky = ctx.createLinearGradient(0, 0, 0, skyY);
+    sky.addColorStop(0, '#bfe9ff');
+    sky.addColorStop(1, '#e6f7d8');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, skyY);
+
+    const grass = ctx.createLinearGradient(0, skyY, 0, basketY);
+    grass.addColorStop(0, '#d6f0b4');
+    grass.addColorStop(1, '#a9dd86');
+    ctx.fillStyle = grass;
+    ctx.fillRect(0, skyY, W, basketY - skyY);
+
+    for (const f of flowers) emoji(f.ch, f.x * W, skyY + f.y * (basketY - skyY), SIZE * 0.22, 1);
+
+    // かご（つかまえたどうぶつが入るところ）
+    ctx.fillStyle = '#e8c89a';
+    ctx.fillRect(0, basketY, W, H - basketY);
+    ctx.fillStyle = '#f3dbb8';
+    ctx.fillRect(0, basketY, W, Math.max(5, (H - basketY) * 0.14));
+    for (let i = 0; i < ROUND; i++) {
+      const s = slotPos(i);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, SIZE * 0.26, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,.42)';
+      ctx.fill();
+    }
+
+    const sorted = animals.slice().sort((p, q) => p.y - q.y);
+    for (const a of sorted) drawAnimal(a);
+
+    for (const p of parts) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      if (p.emoji) {
+        emoji(p.emoji, p.x, p.y, p.size, 1);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  for (let i = 0; i < 14; i++) {
+    flowers.push({ ch: FLOWERS[i % FLOWERS.length], x: Math.random(), y: Math.random() });
+  }
+  startRound();
+
+  let last = performance.now();
+  function frame(now) {
+    // rAF の最初のタイムスタンプは直前の performance.now() より前になることがあるため、負の dt を弾く
+    const dt = Math.max(0, Math.min((now - last) / 16.666, 3));
+    last = now;
+    step(dt);
+    drawScene();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---- さわる ----
+  function touch(x, y) {
+    let hit = null, best = Infinity;
+    for (const a of animals) {
+      if (a.state !== 'free' || a.born > 0) continue;
+      const d = Math.hypot(a.x - x, a.y - y);
+      // 指は太いので、当たり判定は見た目より大きめにする
+      if (d < SIZE * 0.62 + 18 && d < best) { best = d; hit = a; }
+    }
+    if (hit) catchAnimal(hit);
+    else { sparkle(x, y); seTwinkle(); }   // 何もないところを触っても必ず反応する
+    hideHint();
+  }
+  cv.addEventListener('pointerdown', (e) => { audio(); touch(e.clientX, e.clientY); });
+  addEventListener('contextmenu', (e) => e.preventDefault());
+
+  let hintTimer = null;
+  function hideHint() {
+    hint.style.opacity = '0';
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { hint.style.opacity = '1'; }, 12000);
+  }
+
+  // ---- 長押しでホームへ ----
+  const homeBtn = document.getElementById('home');
+  const fill = document.getElementById('homeFill');
+  let holdTimer = null;
+  homeBtn.addEventListener('pointerdown', () => {
+    fill.style.transition = 'transform .9s linear';
+    fill.style.transform = 'scaleY(1)';
+    holdTimer = setTimeout(() => { location.href = 'index.html'; }, 900);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+    homeBtn.addEventListener(ev, () => {
+      clearTimeout(holdTimer);
+      fill.style.transition = 'transform .2s ease';
+      fill.style.transform = 'scaleY(0)';
+    });
+  }
+})();
+</script>
+</body>
+</html>

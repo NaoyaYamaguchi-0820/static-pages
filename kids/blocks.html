@@ -401,7 +401,8 @@
 
   let last = performance.now();
   function frame(now) {
-    const dt = Math.min((now - last) / 16.666, 3);
+    // rAF の最初のタイムスタンプは直前の performance.now() より前になることがあるため、負の dt を弾く
+    const dt = Math.max(0, Math.min((now - last) / 16.666, 3));
     last = now;
     step(dt);
     drawScene();
