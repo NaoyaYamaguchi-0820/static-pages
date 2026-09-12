@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>どうぶつタッチ ｜ こどもあそび</title>
+<meta name="description" content="どうぶつを押すと名前と鳴き声を教えてくれる、ことばの知育あそび。1歳から遊べます。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    font-family: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4", "Yu Gothic", system-ui, sans-serif;
+    background: #fff8e7;
+  }
+  body { display: flex; flex-direction: column; }
+  .grid {
+    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 8px; padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .card {
+    border: 0; padding: 0; border-radius: 22px; cursor: pointer; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.10); transition: transform .12s ease;
+    font-family: inherit;
+  }
+  .card:active { transform: scale(.94); }
+  .card.bump { animation: bump .45s ease; }
+  @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.14) rotate(-3deg); } 100% { transform: scale(1); } }
+  .card .emoji {
+    font-size: clamp(40px, 14vmin, 96px); line-height: 1;
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  }
+  .card .name { font-size: clamp(14px, 3.4vmin, 24px); font-weight: 800; color: #6b5540; letter-spacing: .04em; }
+
+  /* タップしたどうぶつを画面の真ん中に大きく出す */
+  .stage {
+    position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 4px;
+    pointer-events: none; opacity: 0; z-index: 20;
+    /* タップしたどうぶつだけに目がいくよう、まわりを薄く覆う */
+    background: rgba(255,248,231,.88);
+  }
+  .stage.show { animation: show 1.5s ease forwards; }
+  @keyframes show {
+    0% { opacity: 0; transform: scale(.5); }
+    14% { opacity: 1; transform: scale(1.06); }
+    24% { transform: scale(1); }
+    78% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.08); }
+  }
+  .stage .big {
+    font-size: clamp(110px, 38vmin, 280px); line-height: 1;
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,.18));
+  }
+  .stage .word {
+    font-size: clamp(30px, 9vmin, 68px); font-weight: 800; color: #fff; letter-spacing: .08em;
+    background: rgba(122,98,72,.92); border-radius: 99px; padding: 4px 30px;
+  }
+  .stage .voice { font-size: clamp(18px, 5vmin, 34px); font-weight: 800; color: #7a6248; }
+
+  .home {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 30;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,.8); color: #7a6248; font-size: 22px;
+    display: grid; place-items: center; overflow: hidden; box-shadow: 0 2px 0 rgba(0,0,0,.08);
+  }
+  .home i { position: absolute; inset: 0; background: #ffd79a; transform: scaleY(0); transform-origin: bottom; }
+  .home span { position: relative; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<div class="stage" id="stage">
+  <div class="big" id="stageEmoji"></div>
+  <div class="word" id="stageWord"></div>
+  <div class="voice" id="stageVoice"></div>
+</div>
+<button class="home" id="home" aria-label="ホームにもどる（ながおし）"><i id="homeFill"></i><span>🏠</span></button>
+
+<script>
+(() => {
+  'use strict';
+
+  // name: 読み上げる名前 / voice: 鳴き声 / notes: 鳴き声の音程（Hz）
+  const ANIMALS = [
+    { emoji: '🐶', name: 'いぬ',    voice: 'わんわん',   color: '#ffe0c2', notes: [330, 280],           dur: .16 },
+    { emoji: '🐱', name: 'ねこ',    voice: 'にゃあ',     color: '#ffd9e6', notes: [660, 880],           dur: .22 },
+    { emoji: '🐮', name: 'うし',    voice: 'もーもー',   color: '#e2f0c8', notes: [180, 150],           dur: .40 },
+    { emoji: '🐷', name: 'ぶた',    voice: 'ぶーぶー',   color: '#ffdfe8', notes: [240, 210],           dur: .20 },
+    { emoji: '🐑', name: 'ひつじ',  voice: 'めえめえ',   color: '#e6e6f7', notes: [520, 470, 520],      dur: .14 },
+    { emoji: '🐔', name: 'にわとり',voice: 'こけこっこ', color: '#ffeeba', notes: [700, 900, 780, 620], dur: .13 },
+    { emoji: '🐸', name: 'かえる',  voice: 'けろけろ',   color: '#d4f2d8', notes: [420, 360, 420, 360], dur: .11 },
+    { emoji: '🐘', name: 'ぞう',    voice: 'ぱおーん',   color: '#dde7f2', notes: [300, 520, 480],      dur: .28 },
+    { emoji: '🐵', name: 'さる',    voice: 'うきうき',   color: '#f3e0c8', notes: [780, 980, 780, 980], dur: .10 },
+  ];
+
+  const grid = document.getElementById('grid');
+  const stage = document.getElementById('stage');
+  const sEmoji = document.getElementById('stageEmoji');
+  const sWord = document.getElementById('stageWord');
+  const sVoice = document.getElementById('stageVoice');
+
+  // ---- 音 ----
+  let ac = null;
+  function audio() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ac = new AC();
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function cry(a) {
+    const c = audio();
+    if (!c) return;
+    let t = c.currentTime + 0.01;
+    for (const f of a.notes) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 0.88, t + a.dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + a.dur);
+      o.connect(g).connect(c.destination);
+      o.start(t);
+      o.stop(t + a.dur + 0.02);
+      t += a.dur * 0.92;
+    }
+  }
+
+  // ---- 読み上げ（ブラウザの音声合成。使えない環境では鳴き声だけ鳴る） ----
+  let jaVoice = null;
+  function pickVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const list = speechSynthesis.getVoices();
+    jaVoice = list.find((v) => v.lang && v.lang.toLowerCase().startsWith('ja')) || null;
+  }
+  if ('speechSynthesis' in window) {
+    pickVoice();
+    speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+  function say(text) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ja-JP';
+      u.rate = 0.85;
+      u.pitch = 1.35;
+      if (jaVoice) u.voice = jaVoice;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  let stageTimer = null;
+  function show(a, card) {
+    card.classList.remove('bump');
+    void card.offsetWidth;
+    card.classList.add('bump');
+
+    sEmoji.textContent = a.emoji;
+    sWord.textContent = a.name;
+    sVoice.textContent = a.voice;
+    stage.classList.remove('show');
+    void stage.offsetWidth;
+    stage.classList.add('show');
+    clearTimeout(stageTimer);
+    stageTimer = setTimeout(() => stage.classList.remove('show'), 1600);
+
+    cry(a);
+    say(a.name + '。' + a.voice);
+  }
+
+  for (const a of ANIMALS) {
+    const b = document.createElement('button');
+    b.className = 'card';
+    b.type = 'button';
+    b.style.background = a.color;
+    b.setAttribute('aria-label', a.name);
+    b.innerHTML = `<span class="emoji">${a.emoji}</span><span class="name">${a.name}</span>`;
+    b.addEventListener('pointerdown', () => show(a, b));
+    grid.appendChild(b);
+  }
+
+  // ---- 長押しでホームへ ----
+  const homeBtn = document.getElementById('home');
+  const fill = document.getElementById('homeFill');
+  let holdTimer = null;
+  homeBtn.addEventListener('pointerdown', () => {
+    fill.style.transition = 'transform .9s linear';
+    fill.style.transform = 'scaleY(1)';
+    holdTimer = setTimeout(() => { location.href = 'index.html'; }, 900);
+  });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+    homeBtn.addEventListener(ev, () => {
+      clearTimeout(holdTimer);
+      fill.style.transition = 'transform .2s ease';
+      fill.style.transform = 'scaleY(0)';
+    });
+  }
+})();
+</script>
+</body>
+</html>
