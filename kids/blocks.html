@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>つみき ｜ こどもあそび</title>
+<meta name="description" content="画面をさわると積み木がポトンと落ちてきて、どんどん積み上がります。崩れても失敗にならない、1歳から遊べる知育あそび。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B1%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    font-family: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4", "Yu Gothic", system-ui, sans-serif;
+    background: #ffeccd;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* 子どもが触っても画面が変わらないよう、ボタンはすべて長押しで反応する */
+  .btn {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); z-index: 10;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,.88); color: #8a6742; font-size: 22px; line-height: 1;
+    display: grid; place-items: center; overflow: hidden;
+  }
+  .home { left: 10px; }
+  .sweep { right: 10px; }
+  .btn i { position: absolute; inset: 0; background: #ffc978; transform: scaleY(0); transform-origin: bottom; }
+  .btn span { position: relative; }
+
+  .hint {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 10;
+    background: rgba(255,255,255,.72); color: #8a6742; font-size: 15px; font-weight: 700;
+    padding: 7px 18px; border-radius: 99px; pointer-events: none; white-space: nowrap;
+    transition: opacity .6s ease;
+  }
+  .cheer {
+    position: fixed; left: 50%; top: 17%; z-index: 9; pointer-events: none;
+    translate: -50% -50%; opacity: 0; scale: .6; white-space: nowrap;
+    font-size: clamp(2rem, 9vw, 4.2rem); font-weight: 800; letter-spacing: .06em;
+    color: #ff8a3d; text-shadow: 0 0 14px #fff, 0 4px 0 rgba(255,255,255,.9);
+  }
+  .cheer.show { animation: pop 1.6s ease forwards; }
+  @keyframes pop {
+    0%   { opacity: 0; scale: .5; }
+    18%  { opacity: 1; scale: 1.12; }
+    30%  { scale: 1; }
+    75%  { opacity: 1; scale: 1; }
+    100% { opacity: 0; scale: 1.05; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button class="btn home" id="home" aria-label="ホームにもどる（ながおし）"><i id="homeFill"></i><span>🏠</span></button>
+<button class="btn sweep" id="sweep" aria-label="つみきをかたづける（ながおし）"><i id="sweepFill"></i><span>🧹</span></button>
+<div class="hint" id="hint">さわると つみきが おちてくるよ</div>
+<div class="cheer" id="cheer"></div>
+
+<script>
+(() => {
+  'use strict';
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  let BW = 96, BH = 62, groundY = 0;
+
+  const MAX_BLOCKS = 24;
+
+  const COLORS = [
+    { f: '#ffa774', e: '#e5824c' },
+    { f: '#84cdf0', e: '#58a7d0' },
+    { f: '#ffd469', e: '#e0b139' },
+    { f: '#a2e0a2', e: '#78be78' },
+    { f: '#f79bc4', e: '#d5749f' },
+    { f: '#b9a8f2', e: '#9183d4' },
+  ];
+  const FACES = ['🐰','🐱','🐶','🐤','🐸','🐷','🍓','🍌','🍎','⭐','🌸','🚗','🎈','🐟','🦋','🐘'];
+  // ペンタトニックなので、どの順に積んでも音が濁らない
+  const PENTA = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51, 1567.98, 1760.00];
+
+  const blocks = [];
+  const parts = [];
+  let seq = 0;
+  let bestLevel = 0;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = Math.floor(W * dpr);
+    cv.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // 小さな手でも押しやすい大きさに。画面が狭いときだけ小さくする
+    BW = Math.max(52, Math.min(112, Math.min(W / 4.4, H / 8)));
+    BH = BW * 0.64;
+    groundY = H - Math.max(48, Math.min(96, H * 0.12));
+    for (const b of blocks) {
+      if (b.x + b.w > W) b.x = W - b.w;
+      if (b.x < 0) b.x = 0;
+      if (b.y + b.h > groundY) b.y = groundY - b.h;
+    }
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ---- 音（外部ファイルなしで合成） ----
+  let ac = null;
+  function audio() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) ac = new AC();
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(freq, type, dur, vol, slideTo, delay) {
+    const a = audio();
+    if (!a) return;
+    const t = a.currentTime + (delay || 0);
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(a.destination);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  function sePlace(level) {
+    const f = PENTA[Math.max(0, Math.min(PENTA.length - 1, level))];
+    tone(f, 'triangle', 0.34, 0.3);
+    tone(f / 2, 'sine', 0.2, 0.16);
+  }
+  function sePick() { tone(1100, 'sine', 0.12, 0.12); }
+  function seTumble() {
+    tone(260, 'square', 0.22, 0.14, 120);
+    tone(190, 'triangle', 0.3, 0.12, 90, 0.08);
+  }
+  function seTwinkle() { tone(1500 + Math.random() * 500, 'triangle', 0.18, 0.12); }
+  function seCheer() {
+    [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => tone(f, 'triangle', 0.3, 0.26, null, i * 0.09));
+  }
+  function sePoof() { tone(700, 'sine', 0.22, 0.12, 260); }
+
+  // ---- 積み木 ----
+  function hOverlap(a, b) {
+    return Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  }
+  function levelOf(y) {
+    return Math.max(0, Math.round((groundY - y) / BH) - 1);
+  }
+
+  function spawn(px) {
+    // いっぱいになったら、上に何も乗っていない一番古い積み木と入れ替える
+    if (blocks.length >= MAX_BLOCKS) {
+      let victim = -1;
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        if (b.held) continue;
+        const covered = blocks.some((o) => o !== b && hOverlap(o, b) > 6 && o.y + o.h <= b.y + 4);
+        if (!covered) { victim = i; break; }
+      }
+      if (victim < 0) victim = 0;
+      poof(blocks[victim]);
+      blocks.splice(victim, 1);
+    }
+    const w = BW;
+    const h = BH * (0.86 + Math.random() * 0.3);
+    const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const b = {
+      id: ++seq, w, h,
+      x: Math.max(4, Math.min(W - w - 4, px - w / 2)),
+      y: -h - 8 - Math.random() * 40,
+      vx: 0, vy: 0, held: false, resting: false, sq: 0,
+      col: c, face: FACES[Math.floor(Math.random() * FACES.length)],
+    };
+    b.py = b.y + b.h;
+    blocks.push(b);
+    seTwinkle();
+    return b;
+  }
+
+  function poof(b) {
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 1 + Math.random() * 3;
+      parts.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 1, color: b.col.f, size: 4 + Math.random() * 5 });
+    }
+  }
+  function dust(x, y, color) {
+    for (let i = 0; i < 7; i++) {
+      const a = -Math.PI * (0.15 + Math.random() * 0.7);
+      const s = 1 + Math.random() * 2.4;
+      parts.push({ x, y, vx: Math.cos(a) * s * (Math.random() < .5 ? -1 : 1), vy: Math.sin(a) * s, life: .8, color, size: 2.5 + Math.random() * 3.5 });
+    }
+  }
+  function confetti() {
+    for (let i = 0; i < 70; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 2 + Math.random() * 7;
+      parts.push({
+        x: W / 2, y: H * 0.17, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2, life: 1.4,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)].f, size: 4 + Math.random() * 6,
+      });
+    }
+  }
+
+  const cheerEl = document.getElementById('cheer');
+  const CHEER_WORDS = ['すごーい！', 'たかいね！', 'じょうずー！', 'やったー！'];
+  function cheer(word) {
+    cheerEl.textContent = word;
+    cheerEl.classList.remove('show');
+    void cheerEl.offsetWidth;
+    cheerEl.classList.add('show');
+    confetti();
+    seCheer();
+  }
+
+  // 画面の外まで積み上がると遊べなくなるので、てっぺんまで届いたらお祝いして片付ける
+  let topOutTimer = null;
+  function topOut() {
+    if (topOutTimer) return;
+    cheer('てっぺん！');
+    topOutTimer = setTimeout(() => {
+      for (const b of blocks) poof(b);
+      blocks.length = 0;
+      held.clear();
+      bestLevel = 0;
+      sePoof();
+      topOutTimer = null;
+    }, 1000);
+  }
+
+  function land(b, y, sup) {
+    b.y = y - b.h;
+    b.vy = 0;
+    b.sq = 1;
+    if (sup) {
+      const ov = hOverlap(b, sup);
+      const dx = (sup.x + sup.w / 2) - (b.x + b.w / 2);
+      if (Math.abs(dx) <= b.w * 0.4) {
+        // 少しくらいずれても、まん中にそろえてあげる
+        b.x += dx;
+        b.vx = 0;
+      } else if (ov < b.w * 0.32) {
+        // のりしろが足りないときは、ころんと落ちる（失敗ではなく、それも楽しい）
+        b.resting = false;
+        b.vx = (b.x + b.w / 2 > sup.x + sup.w / 2 ? 1 : -1) * (2 + Math.random());
+        b.y -= 3;
+        seTumble();
+        return;
+      } else {
+        b.vx = 0;
+      }
+    } else {
+      b.vx = 0;
+    }
+    b.resting = true;
+    const lv = levelOf(b.y);
+    sePlace(lv);
+    dust(b.x + 6, b.y + b.h, b.col.e);
+    dust(b.x + b.w - 6, b.y + b.h, b.col.e);
+
+    if (lv + 1 > bestLevel) {
+      bestLevel = lv + 1;
+      if (bestLevel === 3 || bestLevel === 5 || bestLevel === 7 || bestLevel >= 9) {
+        cheer(CHEER_WORDS[Math.min(CHEER_WORDS.length - 1, Math.floor(bestLevel / 3) - 1)] || 'すごーい！');
+      }
+    }
+    if (b.y < BH * 0.7) topOut();
+  }
+
+  function stillSupported(b) {
+    const bottom = b.y + b.h;
+    if (Math.abs(bottom - groundY) < 3) return true;
+    for (const o of blocks) {
+      if (o === b || o.held) continue;
+      if (Math.abs(o.y - bottom) < 3 && hOverlap(b, o) > 6) return true;
+    }
+    return false;
+  }
+
+  function step(dt) {
+    for (const b of blocks) {
+      if (b.sq > 0) b.sq = Math.max(0, b.sq - 0.07 * dt);
+      if (b.held) { b.py = b.y + b.h; continue; }
+      if (b.resting) {
+        if (!stillSupported(b)) b.resting = false;
+        else continue;
+      }
+      const prevBottom = b.py;
+      b.vy = Math.min(b.vy + 0.95 * dt, 24);
+      b.y += b.vy * dt;
+      b.x += b.vx * dt;
+      b.vx *= Math.pow(0.985, dt);
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * 0.35; }
+      if (b.x + b.w > W) { b.x = W - b.w; b.vx = -Math.abs(b.vx) * 0.35; }
+
+      const bottom = b.y + b.h;
+      let bestY = Infinity, sup = null;
+      if (bottom >= groundY && prevBottom <= groundY + 10) bestY = groundY;
+      for (const o of blocks) {
+        if (o === b) continue;
+        if (hOverlap(b, o) <= 6) continue;
+        if (bottom >= o.y && prevBottom <= o.y + 10 && o.y < bestY) { bestY = o.y; sup = o; }
+      }
+      if (bestY < Infinity) land(b, bestY, sup);
+      else if (b.y > H + 200) { b.y = -b.h; b.vy = 0; }
+      b.py = b.y + b.h;
+    }
+
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += 0.14 * dt; p.vx *= 0.99;
+      p.life -= 0.018 * dt;
+      if (p.life <= 0 || p.y > H + 40) parts.splice(i, 1);
+    }
+  }
+
+  // ---- 描画 ----
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawBlock(b) {
+    // 着地した瞬間だけ、ぷにっとつぶれる
+    const sx = 1 + b.sq * 0.09;
+    const sy = 1 - b.sq * 0.13;
+    const cx = b.x + b.w / 2, by = b.y + b.h;
+    ctx.save();
+    ctx.translate(cx, by);
+    ctx.scale(b.held ? 1.06 : sx, b.held ? 1.06 : sy);
+    ctx.translate(-cx, -by);
+
+    if (b.held) {
+      ctx.shadowColor = 'rgba(0,0,0,.22)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 8;
+    }
+    const r = Math.min(b.w, b.h) * 0.22;
+    roundRect(b.x, b.y, b.w, b.h, r);
+    ctx.fillStyle = b.col.e;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    roundRect(b.x, b.y, b.w, b.h - Math.max(4, b.h * 0.09), r);
+    ctx.fillStyle = b.col.f;
+    ctx.fill();
+
+    roundRect(b.x + b.w * 0.1, b.y + b.h * 0.1, b.w * 0.8, b.h * 0.2, b.h * 0.1);
+    ctx.fillStyle = 'rgba(255,255,255,.42)';
+    ctx.fill();
+
+    ctx.font = `${b.h * 0.52}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillText(b.face, b.x + b.w / 2, b.y + b.h * 0.5);
+    ctx.restore();
+  }
+
+  function drawScene() {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#fff3d8');
+    bg.addColorStop(1, '#ffe2bd');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // ゆか
+    ctx.fillStyle = '#e0b489';
+    ctx.fillRect(0, groundY, W, H - groundY);
+    ctx.fillStyle = '#f0cda6';
+    ctx.fillRect(0, groundY, W, Math.max(6, (H - groundY) * 0.16));
+
+    const others = [], held = [];
+    for (const b of blocks) (b.held ? held : others).push(b);
+    for (const b of others) drawBlock(b);
+    for (const b of held) drawBlock(b);
+
+    for (const p of parts) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 16.666, 3);
+    last = now;
+    step(dt);
+    drawScene();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---- さわる（複数の指でも動く） ----
+  const held = new Map();
+
+  function blockAt(x, y) {
+    let found = null;
+    for (const b of blocks) {
+      if (b.held) continue;
+      // 指は太いので、少し大きめの当たり判定にする
+      if (x >= b.x - 10 && x <= b.x + b.w + 10 && y >= b.y - 10 && y <= b.y + b.h + 10) {
+        if (!found || b.y < found.y) found = b;
+      }
+    }
+    return found;
+  }
+
+  cv.addEventListener('pointerdown', (e) => {
+    audio();
+    hideHint();
+    const b = blockAt(e.clientX, e.clientY);
+    if (b) {
+      b.held = true; b.resting = false; b.vx = 0; b.vy = 0;
+      held.set(e.pointerId, {
+        b, dx: b.x - e.clientX, dy: b.y - e.clientY, lx: e.clientX,
+        ox: b.x, oy: b.y, sx: e.clientX, sy: e.clientY, t: performance.now(),
+      });
+      sePick();
+      cv.setPointerCapture(e.pointerId);
+    } else {
+      spawn(e.clientX);
+    }
+  });
+
+  cv.addEventListener('pointermove', (e) => {
+    const h = held.get(e.pointerId);
+    if (!h) return;
+    const b = h.b;
+    b.x = Math.max(0, Math.min(W - b.w, e.clientX + h.dx));
+    b.y = Math.max(-b.h, Math.min(groundY - b.h, e.clientY + h.dy));
+    b.vx = (e.clientX - h.lx) * 0.25;
+    h.lx = e.clientX;
+  });
+
+  function release(e) {
+    const h = held.get(e.pointerId);
+    if (!h) return;
+    held.delete(e.pointerId);
+    const b = h.b;
+    b.held = false;
+    b.vy = 0;
+    // ちょんと触っただけなら、積み木は動かさずに新しい積み木を落とす
+    // （どこを触っても必ず積み木が増えるほうが、小さな子にはわかりやすい）
+    if (performance.now() - h.t < 400 && Math.hypot(e.clientX - h.sx, e.clientY - h.sy) < 14) {
+      b.x = h.ox; b.y = h.oy; b.vx = 0; b.py = b.y + b.h;
+      spawn(e.clientX);
+      return;
+    }
+    b.vx = Math.max(-4, Math.min(4, b.vx));
+    // 重なったまま離されたら、上にひょいと乗せてあげる
+    let lift = Infinity;
+    for (const o of blocks) {
+      if (o === b || o.held) continue;
+      if (hOverlap(b, o) > 6 && b.y + b.h > o.y + 2 && b.y < o.y + o.h) lift = Math.min(lift, o.y - b.h);
+    }
+    if (lift < Infinity) b.y = lift - 1;
+    b.py = b.y + b.h;
+  }
+  cv.addEventListener('pointerup', release);
+  cv.addEventListener('pointercancel', release);
+  addEventListener('contextmenu', (e) => e.preventDefault());
+
+  const hint = document.getElementById('hint');
+  let hintTimer = null;
+  function hideHint() {
+    hint.style.opacity = '0';
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { hint.style.opacity = '1'; }, 12000);
+  }
+
+  // ---- 長押しのボタン ----
+  function longPress(btn, fill, action) {
+    let timer = null;
+    const start = () => {
+      fill.style.transition = 'transform .9s linear';
+      fill.style.transform = 'scaleY(1)';
+      timer = setTimeout(action, 900);
+    };
+    const end = () => {
+      clearTimeout(timer);
+      fill.style.transition = 'transform .2s ease';
+      fill.style.transform = 'scaleY(0)';
+    };
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointerleave', end);
+    btn.addEventListener('pointercancel', end);
+  }
+
+  longPress(document.getElementById('home'), document.getElementById('homeFill'), () => {
+    location.href = 'index.html';
+  });
+  longPress(document.getElementById('sweep'), document.getElementById('sweepFill'), () => {
+    if (blocks.length) {
+      for (const b of blocks) poof(b);
+      blocks.length = 0;
+      held.clear();
+      bestLevel = 0;
+      sePoof();
+    } else {
+      seTwinkle();
+    }
+  });
+})();
+</script>
+</body>
+</html>
