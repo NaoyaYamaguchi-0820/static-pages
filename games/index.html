@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ミニゲームセンター</title>
+<meta name="description" content="ブラウザだけで遊べるミニゲーム集。2048・ブロック崩し・もぐらたたき・ことわざタイピング。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 72px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); margin: 0 0 8px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 32px; }
+
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  a.card {
+    display: block; text-decoration: none; color: inherit; position: relative; overflow: hidden;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.22); }
+  a.card .emoji { font-size: 2.4rem; line-height: 1; display: block; margin-bottom: 10px; }
+  a.card .name { font-size: 1.15rem; font-weight: 700; display: block; }
+  a.card .desc { color: var(--muted); font-size: .85rem; display: block; margin-top: 4px; }
+  a.card .tags { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  a.card .tags span {
+    font-size: .7rem; color: var(--muted); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px;
+  }
+  a.card .best { position: absolute; top: 16px; right: 16px; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  a.card .best b { color: var(--accent); font-size: .9rem; }
+
+  .note { margin-top: 32px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; font-size: .85rem; color: var(--muted); }
+  .note b { color: var(--text); }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← static-pages</a>
+  <h1>🎮 ミニゲームセンター</h1>
+  <p class="lead">インストール不要・オフラインでも動く、ブラウザだけで遊べるミニゲーム集です。スコアはこの端末のブラウザに保存されます。</p>
+
+  <div class="cards">
+    <a class="card" href="2048.html" data-best="minigames.2048.best">
+      <span class="best"></span>
+      <span class="emoji">🔢</span>
+      <span class="name">2048</span>
+      <span class="desc">同じ数字を合体させて 2048 を目指すパズル。</span>
+      <span class="tags"><span>パズル</span><span>じっくり</span><span>キーボード / スワイプ</span></span>
+    </a>
+    <a class="card" href="breakout.html" data-best="minigames.breakout.best">
+      <span class="best"></span>
+      <span class="emoji">🧱</span>
+      <span class="name">ブロック崩し</span>
+      <span class="desc">アイテムを拾いながらステージを進むアクション。</span>
+      <span class="tags"><span>アクション</span><span>ステージ制</span><span>マウス / タッチ</span></span>
+    </a>
+    <a class="card" href="mogura.html" data-best="minigames.mogura.best">
+      <span class="best"></span>
+      <span class="emoji">🔨</span>
+      <span class="name">もぐらたたき</span>
+      <span class="desc">30秒勝負。爆弾を避けて金もぐらを狙え。</span>
+      <span class="tags"><span>反射神経</span><span>30秒</span><span>クリック / タップ</span></span>
+    </a>
+    <a class="card" href="typing.html" data-best="minigames.typing.best">
+      <span class="best"></span>
+      <span class="emoji">⌨️</span>
+      <span class="name">ことわざタイピング</span>
+      <span class="desc">60秒でことわざを何本打てるか。表記ゆれ対応。</span>
+      <span class="tags"><span>タイピング</span><span>60秒</span><span>キーボード</span></span>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>すべて1ファイル完結</b>です。外部ライブラリも通信も使っていないので、HTMLを保存すればオフラインでもそのまま遊べます。
+    ハイスコアはブラウザの localStorage に保存されるため、端末やブラウザを変えると引き継がれません。
+  </div>
+
+  <footer>© static-pages ／ ミニゲームセンター</footer>
+</div>
+
+<script>
+  // 各カードに保存済みハイスコアを表示する
+  document.querySelectorAll('a.card').forEach((card) => {
+    let v = 0;
+    try { v = Number(localStorage.getItem(card.dataset.best)) || 0; } catch (e) {}
+    if (v > 0) card.querySelector('.best').innerHTML = 'BEST <b>' + v.toLocaleString() + '</b>';
+  });
+</script>
+</body>
+</html>
