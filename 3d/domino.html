@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ドミノたおし ｜ 3Dあそび</title>
+<meta name="description" content="ゆびでなぞるとドミノがならび、ボタンでつぎつぎ たおれていく3Dあそび。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%80%84%3C/text%3E%3C/svg%3E">
+<style>
+  body { background: #2a2140; }
+  #tools {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 30; display: flex; gap: 14px;
+  }
+  #tools button {
+    width: 74px; height: 74px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    font-size: 30px; display: grid; place-items: center; box-shadow: 0 3px 0 rgba(0,0,0,.2);
+    background: #fff; color: #4b3f63;
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+    transition: transform .12s ease, opacity .2s ease;
+  }
+  #tools button:active { transform: scale(.92); }
+  #tools button:disabled { opacity: .35; }
+  #go { background: #ffd166; }
+  #count {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 30;
+    background: rgba(255,255,255,.88); color: #4b3f63; border-radius: 99px;
+    padding: 9px 18px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 0 rgba(0,0,0,.14); pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="count">🀄 0</div>
+<div id="tools">
+  <button id="go" aria-label="ドミノをたおす">👉</button>
+  <button id="clear" aria-label="ぜんぶかたづける">🧹</button>
+</div>
+
+<script type="module">
+import { boot, makeStage, addLights, makeSound, addHomeButton, addSoundButton, addHint, addCheer, confetti, rand }
+  from './common.js';
+
+// このページは物理エンジンを使わない。
+// cannon-es では「たおれたドミノが つぎを おし倒す」のが安定して起きず
+// （うすい箱どうしの接触で力がうまく伝わらない）、とちゅうで止まってしまうため、
+// たおれる動きは自前で順番に再生している。そのほうが見た目もそろってきれい。
+const { THREE } = await boot({ mark: '🀄' });
+
+const W = 0.30, H = 0.52, T = 0.075;   // ドミノの おおきさ
+const SPACING = 0.36;                   // となりとの あいだ
+const MAX = 80;                         // ならべられる数
+const FIELD = 6.4;                      // ならべられる ひろさ
+const FALL_TIME = 0.30;                 // 1まいが たおれきるまで
+const STAGGER = 0.075;                  // つぎの1まいに つたわるまで
+// となりに もたれかかって 止まる角度（幾何で決まる）
+const REST = Math.asin(Math.min(0.98, (SPACING - T) / H));
+
+const PORTRAIT = window.innerHeight > window.innerWidth;
+const stage = makeStage(THREE, { bg: '#2a2140', fog: { near: 16, far: 40 }, fov: PORTRAIT ? 60 : 50 });
+const { scene, camera, renderer } = stage;
+camera.position.set(0, 7.6, 8.4);
+camera.lookAt(0, 0, -0.2);
+
+addLights(THREE, scene, { sky: '#e4e0ff', ground: '#3a2f55', hemi: 1.0, sun: 2.6, from: [5, 12, 7], at: [0, 0, 0], span: 10 });
+
+const sound = makeSound();
+addHomeButton('index.html');
+addSoundButton(sound);
+const hint = addHint('ゆびで なぞって ドミノをならべよう');
+const cheer = addCheer();
+const countEl = document.getElementById('count');
+const goBtn = document.getElementById('go');
+const clearBtn = document.getElementById('clear');
+
+// ---------------------------------------------------------------
+// ゆか
+// ---------------------------------------------------------------
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(FIELD + 1.6, 64),
+  new THREE.MeshStandardMaterial({ color: '#4a3f6e', roughness: 0.95 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const edge = new THREE.Mesh(
+  new THREE.RingGeometry(FIELD, FIELD + 0.08, 72),
+  new THREE.MeshBasicMaterial({ color: '#8d7fd8', transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+);
+edge.rotation.x = -Math.PI / 2;
+edge.position.y = 0.01;
+scene.add(edge);
+
+// ---------------------------------------------------------------
+// ドミノ
+// ---------------------------------------------------------------
+const dominoGeo = new THREE.BoxGeometry(W, H, T);
+const dotGeo = new THREE.CircleGeometry(0.035, 12);
+const dotMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6 });
+
+const dominoes = [];
+let hue = 0;
+
+/**
+ * 1まい置く。
+ * たおれる動きは「まえがわの下のかど」を軸にした回転なので、
+ * その位置にグループを置き、中の板をずらして持たせている。
+ */
+function addDomino(x, z, angle) {
+  hue = (hue + 0.085) % 1;
+  const color = new THREE.Color().setHSL(hue, 0.68, 0.6);
+
+  const pivot = new THREE.Group();
+  pivot.position.set(x + Math.sin(angle) * (T / 2), 0, z + Math.cos(angle) * (T / 2));
+  pivot.rotation.y = angle;
+  scene.add(pivot);
+
+  const mesh = new THREE.Mesh(dominoGeo, new THREE.MeshStandardMaterial({ color, roughness: 0.45 }));
+  mesh.position.set(0, H / 2, -T / 2);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  for (const dy of [0.12, -0.12]) {
+    const d = new THREE.Mesh(dotGeo, dotMat);
+    d.position.set(0, dy, T / 2 + 0.002);
+    mesh.add(d);
+  }
+  pivot.add(mesh);
+
+  dominoes.push({ pivot, angle, rest: REST * rand(0.94, 1.06), fall: 0, start: -1 });
+  countEl.textContent = '🀄 ' + dominoes.length;
+  sound.tone({ freq: 420 + dominoes.length * 8, type: 'triangle', dur: 0.09, gain: 0.09 });
+}
+
+function clearAll() {
+  for (const d of dominoes) scene.remove(d.pivot);
+  dominoes.length = 0;
+  countEl.textContent = '🀄 0';
+  knockedAt = -1;
+  celebrated = false;
+  clackedTo = -1;
+  refreshTools();
+  sound.noise({ dur: 0.3, gain: 0.16, cut: 900 });
+  hint.set('また ならべてみよう', 2600);
+}
+
+// ---------------------------------------------------------------
+// ならべる（ゆびでなぞる）
+// ---------------------------------------------------------------
+const rayc = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const hitPoint = new THREE.Vector3();
+let last = null;
+let drawing = false;
+
+function tryPlace(clientX, clientY) {
+  if (dominoes.length >= MAX) {
+    hint.set('いっぱいです。🧹でかたづけてね', 2600);
+    return;
+  }
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((clientY - r.top) / r.height) * 2 + 1;
+  rayc.setFromCamera(ndc, camera);
+  if (!rayc.ray.intersectPlane(groundPlane, hitPoint)) return;
+  const p = hitPoint;
+  if (Math.hypot(p.x, p.z) > FIELD) return;   // わくの外には置かない
+
+  if (!last) { last = { x: p.x, z: p.z }; return; }   // 1まい目は向きが決まらないので2点目を待つ
+
+  const dx = p.x - last.x, dz = p.z - last.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < SPACING) return;
+
+  const dir = Math.atan2(dx, dz);   // なぞった向き
+  const steps = Math.min(Math.floor(dist / SPACING), 4);
+  for (let i = 1; i <= steps; i++) {
+    const t = (i * SPACING) / dist;
+    addDomino(last.x + dx * t, last.z + dz * t, dir);
+  }
+  const used = (steps * SPACING) / dist;
+  last = { x: last.x + dx * used, z: last.z + dz * used };
+  refreshTools();
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.target.closest && e.target.closest('button')) return;
+  e.preventDefault();
+  sound.unlock();
+  if (knockedAt >= 0) clearAll();
+  drawing = true;
+  last = null;
+  tryPlace(e.clientX, e.clientY);
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (drawing) tryPlace(e.clientX, e.clientY);
+});
+for (const ev of ['pointerup', 'pointercancel']) {
+  renderer.domElement.addEventListener(ev, (e) => {
+    drawing = false;
+    try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (err) { /* 解放ずみ */ }
+    if (dominoes.length >= 2) hint.set('👉 をおすと たおれるよ', 4000);
+  });
+}
+
+// ---------------------------------------------------------------
+// たおす
+// ---------------------------------------------------------------
+let knockedAt = -1;     // たおしはじめた時刻
+let celebrated = false;
+let clackedTo = -1;     // どこまで音を鳴らしたか
+
+function refreshTools() {
+  goBtn.disabled = dominoes.length < 2 || knockedAt >= 0;
+  clearBtn.disabled = dominoes.length === 0;
+}
+refreshTools();
+
+goBtn.addEventListener('click', () => {
+  if (dominoes.length < 2 || knockedAt >= 0) return;
+  sound.unlock();
+  knockedAt = clock;
+  clackedTo = -1;
+  celebrated = false;
+  refreshTools();
+  hint.hide();
+});
+clearBtn.addEventListener('click', () => { sound.unlock(); clearAll(); });
+
+// ---------------------------------------------------------------
+// うごかす
+// ---------------------------------------------------------------
+let clock = 0;
+
+stage.run((dt) => {
+  clock += dt;
+  if (knockedAt < 0) return;
+
+  const since = clock - knockedAt;
+  let done = 0;
+
+  for (let i = 0; i < dominoes.length; i++) {
+    const d = dominoes[i];
+    const t0 = i * STAGGER;
+    const u = (since - t0) / FALL_TIME;
+    if (u <= 0) continue;
+
+    // さいごの1まいだけは よりかかる相手がいないので、ぱたんと たおれる
+    const restAngle = (i === dominoes.length - 1) ? Math.PI / 2 : d.rest;
+    // はじめは ゆっくり、さいごは すとん と おちる（おもみのある感じ）
+    const p = Math.min(u, 1);
+    d.pivot.rotation.x = restAngle * Math.pow(p, 1.7);
+    if (p >= 1) done++;
+
+    if (i > clackedTo) {
+      clackedTo = i;
+      sound.noise({ dur: 0.06, gain: 0.13, cut: 3600 });
+      sound.tone({ freq: rand(620, 1050), type: 'square', dur: 0.05, gain: 0.05 });
+    }
+  }
+
+  if (!celebrated && done === dominoes.length) {
+    celebrated = true;
+    cheer('ぜんぶ たおれた！', '#ffd166');
+    confetti(Math.min(140, 40 + dominoes.length * 2));
+    sound.fanfare();
+    setTimeout(() => { hint.set('さわると あたらしく ならべられるよ', 5000); }, 900);
+  }
+});
+</script>
+</body>
+</html>

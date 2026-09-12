@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>くだものキャッチ ｜ 3Dあそび</title>
+<meta name="description" content="くまさんのかごを動かして、おちてくる3Dのくだものを うけとめるあそび。おとしても へいきです。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%8E%3C/text%3E%3C/svg%3E">
+<style>
+  body { background: #ffe9c9; }
+  #score {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; z-index: 30;
+    background: rgba(255,255,255,.9); color: #8a5a2b; border-radius: 99px;
+    padding: 9px 18px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 0 rgba(0,0,0,.1); pointer-events: none;
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji", inherit;
+  }
+</style>
+</head>
+<body>
+<div id="score">🍎 0</div>
+
+<script type="module">
+import { boot, makeStage, addLights, makeSound, addHomeButton, addSoundButton, addHint, addCheer, confetti, SCALE, rand, pick }
+  from './common.js';
+
+const { THREE } = await boot({ mark: '🍎' });
+
+const LIMIT = 4.6;        // うごける はば
+const BASKET_Y = 1.24;    // かごのふち の たかさ
+const CATCH_X = 0.98;     // このくらい ちかければ うけとめられる
+
+const PORTRAIT = window.innerHeight > window.innerWidth;
+const stage = makeStage(THREE, { bg: '#ffe9c9', fog: { color: '#ffeeda', near: 22, far: 55 }, fov: PORTRAIT ? 60 : 48 });
+const { scene, camera, renderer } = stage;
+camera.position.set(0, 3.6, 9.8);
+camera.lookAt(0, 3.0, 0);
+
+addLights(THREE, scene, { sky: '#fff6e8', ground: '#a8d18a', hemi: 1.3, sun: 2.3, from: [4, 12, 8], at: [0, 2, 0], span: 11 });
+
+const sound = makeSound();
+addHomeButton('index.html');
+addSoundButton(sound);
+const hint = addHint('よこに うごかして うけとめよう');
+const cheer = addCheer();
+const scoreEl = document.getElementById('score');
+
+// ---------------------------------------------------------------
+// けしき
+// ---------------------------------------------------------------
+const grass = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 26),
+  new THREE.MeshStandardMaterial({ color: '#8fce7a', roughness: 1 })
+);
+grass.rotation.x = -Math.PI / 2;
+grass.receiveShadow = true;
+scene.add(grass);
+
+// うしろの木
+for (let i = 0; i < 9; i++) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.22, 1.4, 8),
+    new THREE.MeshStandardMaterial({ color: '#8a5f3a', roughness: 1 })
+  );
+  trunk.position.y = 0.7;
+  g.add(trunk);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(rand(0.8, 1.25), 12, 9),
+    new THREE.MeshStandardMaterial({ color: pick(['#5fa85a', '#4d9350', '#75bd66']), roughness: 1 })
+  );
+  leaf.position.y = 1.9;
+  leaf.scale.y = 0.85;
+  leaf.castShadow = true;
+  g.add(leaf);
+  g.position.set(rand(-13, 13), 0, rand(-9, -4));
+  g.scale.setScalar(rand(0.9, 1.5));
+  scene.add(g);
+}
+
+// ---------------------------------------------------------------
+// くまさんと かご
+// ---------------------------------------------------------------
+const bear = new THREE.Group();
+scene.add(bear);
+{
+  const fur = new THREE.MeshStandardMaterial({ color: '#c89264', roughness: 0.9 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#4a3526', roughness: 0.8 });
+  const light = new THREE.MeshStandardMaterial({ color: '#e8c9a4', roughness: 0.9 });
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.5, 8, 16), fur);
+  body.position.y = 0.72;
+  body.castShadow = true;
+  bear.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 16), fur);
+  head.position.y = 1.62;
+  head.castShadow = true;
+  bear.add(head);
+
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), fur);
+    ear.position.set(sx * 0.32, 1.93, 0);
+    bear.add(ear);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), dark);
+    eye.position.set(sx * 0.15, 1.66, 0.38);
+    bear.add(eye);
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.34, 6, 10), fur);
+    arm.position.set(sx * 0.46, 0.95, 0.3);
+    arm.rotation.set(-0.9, 0, sx * 0.35);
+    bear.add(arm);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.2, 6, 10), fur);
+    leg.position.set(sx * 0.2, 0.2, 0);
+    bear.add(leg);
+  }
+
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), light);
+  snout.position.set(0, 1.52, 0.36);
+  snout.scale.set(1, 0.75, 0.7);
+  bear.add(snout);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), dark);
+  nose.position.set(0, 1.56, 0.5);
+  bear.add(nose);
+}
+
+// かご
+const basket = new THREE.Group();
+basket.position.set(0, 0.86, 0.58);
+bear.add(basket);
+{
+  const wicker = new THREE.MeshStandardMaterial({ color: '#e0a95e', roughness: 0.85, side: THREE.DoubleSide });
+  const side = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.3, 0.38, 22, 1, true), wicker);
+  side.position.y = 0.19;
+  side.castShadow = true;
+  basket.add(side);
+  const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.3, 22), wicker);
+  bottom.rotation.x = -Math.PI / 2;
+  basket.add(bottom);
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.44, 0.045, 10, 26),
+    new THREE.MeshStandardMaterial({ color: '#b8823f', roughness: 0.8 })
+  );
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.y = 0.38;
+  basket.add(rim);
+}
+
+// ---------------------------------------------------------------
+// くだもの
+// ---------------------------------------------------------------
+const leafMat = new THREE.MeshStandardMaterial({ color: '#5fa85a', roughness: 0.8 });
+const stemMat = new THREE.MeshStandardMaterial({ color: '#7a5232', roughness: 0.9 });
+
+const FRUITS = [
+  // りんご
+  () => {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 14),
+      new THREE.MeshStandardMaterial({ color: '#e8483f', roughness: 0.3 }));
+    b.scale.y = 0.92;
+    g.add(b);
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.16, 6), stemMat);
+    s.position.y = 0.3;
+    g.add(s);
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), leafMat);
+    l.position.set(0.1, 0.34, 0);
+    l.scale.set(1.4, 0.3, 0.8);
+    g.add(l);
+    return g;
+  },
+  // みかん
+  () => {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 14),
+      new THREE.MeshStandardMaterial({ color: '#ff9a2e', roughness: 0.45 }));
+    b.scale.y = 0.82;
+    g.add(b);
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), leafMat);
+    l.position.y = 0.25;
+    l.scale.set(1.3, 0.35, 1);
+    g.add(l);
+    return g;
+  },
+  // ぶどう
+  () => {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: '#8e5bc9', roughness: 0.35 });
+    const rows = [[0, 0.16], [-0.1, 0.02], [0.1, 0.02], [0, -0.12], [-0.09, -0.22], [0.09, -0.22]];
+    for (const [x, y] of rows) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), mat);
+      s.position.set(x, y, rand(-0.05, 0.05));
+      g.add(s);
+    }
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), leafMat);
+    l.position.y = 0.3;
+    l.scale.set(1.3, 0.3, 0.9);
+    g.add(l);
+    return g;
+  },
+  // いちご
+  () => {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.42, 16),
+      new THREE.MeshStandardMaterial({ color: '#f2445c', roughness: 0.35 }));
+    b.rotation.x = Math.PI;
+    b.position.y = -0.02;
+    g.add(b);
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), leafMat);
+    l.position.y = 0.2;
+    l.scale.set(1.3, 0.28, 1.3);
+    g.add(l);
+    return g;
+  },
+  // バナナ
+  () => {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: '#f7d23e', roughness: 0.45 });
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.26, -0.1, 0), new THREE.Vector3(0, 0.16, 0), new THREE.Vector3(0.26, -0.1, 0),
+    ]);
+    const b = new THREE.Mesh(new THREE.TubeGeometry(curve, 18, 0.085, 10), mat);
+    g.add(b);
+    return g;
+  },
+];
+
+const falling = [];
+const splats = [];
+let caught = 0;
+let dropTimer = 0.7;
+
+function spawnFruit() {
+  const make = pick(FRUITS);
+  const g = make();
+  g.position.set(rand(-LIMIT, LIMIT), 8.4, 0);
+  g.scale.setScalar(rand(0.95, 1.25));
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  scene.add(g);
+  falling.push({
+    g,
+    vy: -rand(2.6, 3.4) - Math.min(caught * 0.05, 2.2),   // だんだん少しだけ速くなる（上限あり）
+    spin: rand(-2, 2),
+    tilt: rand(-1.5, 1.5),
+  });
+}
+
+function splat(x, color) {
+  for (let i = 0; i < 8; i++) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 8, 6),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.6 })
+    );
+    m.position.set(x, 0.12, rand(-0.2, 0.2));
+    scene.add(m);
+    splats.push({ m, vx: rand(-2, 2), vy: rand(1.5, 3.5), vz: rand(-1, 1), life: 1 });
+  }
+}
+
+// ---------------------------------------------------------------
+// そうさ
+// ---------------------------------------------------------------
+const rayc = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const movePlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const hitPoint = new THREE.Vector3();
+let goalX = 0;
+let keyDir = 0;
+
+function aimAt(clientX, clientY) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((clientY - r.top) / r.height) * 2 + 1;
+  rayc.setFromCamera(ndc, camera);
+  if (!rayc.ray.intersectPlane(movePlane, hitPoint)) return;
+  goalX = Math.max(-LIMIT, Math.min(LIMIT, hitPoint.x));
+}
+
+let dragging = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.target.closest && e.target.closest('button')) return;
+  e.preventDefault();
+  sound.unlock();
+  dragging = true;
+  aimAt(e.clientX, e.clientY);
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', (e) => { if (dragging) aimAt(e.clientX, e.clientY); });
+for (const ev of ['pointerup', 'pointercancel']) {
+  renderer.domElement.addEventListener(ev, (e) => {
+    dragging = false;
+    try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (err) { /* 解放ずみ */ }
+  });
+}
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'ArrowLeft') keyDir = -1;
+  else if (e.code === 'ArrowRight') keyDir = 1;
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') keyDir = 0;
+});
+
+// ---------------------------------------------------------------
+// うごかす
+// ---------------------------------------------------------------
+let basketPop = 0;
+
+stage.run((dt, t) => {
+  if (keyDir) goalX = Math.max(-LIMIT, Math.min(LIMIT, goalX + keyDir * 7 * dt));
+
+  // くまさんは すこし おくれて ついてくる（なめらかに見える）
+  const before = bear.position.x;
+  bear.position.x += (goalX - bear.position.x) * (1 - Math.exp(-dt * 9));
+  const vx = (bear.position.x - before) / Math.max(dt, 0.0001);
+  bear.rotation.z = Math.max(-0.22, Math.min(0.22, -vx * 0.03));
+  bear.position.y = Math.abs(Math.sin(t * 6)) * Math.min(Math.abs(vx) * 0.012, 0.06);
+
+  if (basketPop > 0) {
+    basketPop = Math.max(0, basketPop - dt * 4);
+    const s = 1 + Math.sin(basketPop * Math.PI) * 0.16;
+    basket.scale.set(s, 1 / s, s);
+  } else {
+    basket.scale.set(1, 1, 1);
+  }
+
+  // くだものを ふらせる
+  dropTimer -= dt;
+  if (dropTimer <= 0) {
+    spawnFruit();
+    dropTimer = Math.max(0.45, 1.15 - caught * 0.012);
+  }
+
+  for (let i = falling.length - 1; i >= 0; i--) {
+    const f = falling[i];
+    f.g.position.y += f.vy * dt;
+    f.g.rotation.z += f.spin * dt;
+    f.g.rotation.x += f.tilt * dt;
+
+    if (f.g.position.y <= BASKET_Y && Math.abs(f.g.position.x - bear.position.x) < CATCH_X) {
+      scene.remove(f.g);
+      falling.splice(i, 1);
+      caught++;
+      basketPop = 1;
+      scoreEl.textContent = '🍎 ' + caught;
+      sound.tone({ freq: SCALE[caught % SCALE.length], type: 'triangle', dur: 0.32, gain: 0.2 });
+      if (caught % 10 === 0) {
+        cheer(caught + 'こ！', '#ff9ecd');
+        confetti(60);
+        sound.fanfare();
+      }
+      continue;
+    }
+
+    if (f.g.position.y <= 0.16) {
+      // おとしても しっぱいにはしない。ぽとん と おちるだけ
+      let color = '#e8483f';
+      f.g.traverse((o) => { if (o.isMesh && o.material.color) color = o.material.color.getStyle(); });
+      splat(f.g.position.x, color);
+      scene.remove(f.g);
+      falling.splice(i, 1);
+      sound.tone({ freq: 150, type: 'sine', dur: 0.18, gain: 0.1, sweep: 0.7 });
+    }
+  }
+
+  for (let i = splats.length - 1; i >= 0; i--) {
+    const p = splats[i];
+    p.vy -= 14 * dt;
+    p.m.position.x += p.vx * dt;
+    p.m.position.y += p.vy * dt;
+    p.m.position.z += p.vz * dt;
+    p.life -= dt * 1.4;
+    p.m.scale.multiplyScalar(1 - dt * 1.2);
+    if (p.life <= 0) { scene.remove(p.m); splats.splice(i, 1); }
+  }
+});
+</script>
+</body>
+</html>
