@@ -43,6 +43,19 @@
   #views button:hover { color: var(--text); }
   #views button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
 
+  /* 自動再生の制限は操作があるまで解除されないので、明示的な入口を置く */
+  #sound {
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+    font: inherit; font-size: .76rem; color: var(--muted); padding: 9px 13px;
+  }
+  #sound:hover { color: var(--text); }
+  #sound.waiting { color: var(--text); border-color: var(--accent); animation: soundWait 1.6s ease-in-out infinite; }
+  @keyframes soundWait {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124,108,255,.55); }
+    60% { box-shadow: 0 0 0 8px rgba(124,108,255,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { #sound.waiting { animation: none; } }
+
   /* 画面が狭いときはUIを詰める */
   @media (max-width: 560px) {
     #topbar { padding: 8px; gap: 6px; }
@@ -114,6 +127,7 @@
     <button data-view="low">ななめ</button>
     <button data-view="top">真上</button>
   </div>
+  <button class="panel" id="sound"><span id="soundIcon">🔇</span><span id="soundLabel">音を出す</span></button>
 </div>
 
 <div class="ui panel" id="hud">
@@ -561,7 +575,11 @@ scene.add(aimRing);
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* 無音で続行 */ }
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // suspended ⇔ running の変化をボタンの表示に反映する
+      audioCtx.addEventListener('statechange', refreshSound);
+    } catch (e) { /* 無音で続行 */ }
   }
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 }
@@ -589,6 +607,32 @@ ballBody.addEventListener('collide', (e) => {
   else if (tag === 'board') beep({ freq: 190,  type: 'triangle', dur: 0.13, gain: g });
   else                      beep({ freq: 120,  type: 'sine',     dur: 0.16, gain: g, sweep: 0.7 });
 });
+
+// 「音を出す」ボタン。ページを開いた直後の AudioContext は suspended なので、
+// 押せば必ず音が出る入口をひとつ用意し、いま鳴る状態かどうかも表示する。
+const soundBtn = document.getElementById('sound');
+const soundIcon = document.getElementById('soundIcon');
+const soundLabel = document.getElementById('soundLabel');
+
+function refreshSound() {
+  const ready = !!audioCtx && audioCtx.state === 'running';
+  soundIcon.textContent = ready ? '🔊' : '🔇';
+  soundLabel.textContent = ready ? '音あり' : '音を出す';
+  soundBtn.classList.toggle('waiting', !ready);
+  soundBtn.setAttribute('aria-label', ready ? '音が出ています' : 'クリックして音を出す');
+}
+
+soundBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  // suspended のまま予約しても、解除された瞬間に鳴る
+  beep({ freq: 660, type: 'sine', dur: 0.14, gain: 0.18 });
+  setTimeout(() => beep({ freq: 990, type: 'sine', dur: 0.22, gain: 0.16 }), 90);
+  refreshSound();
+});
+// タブを離れると中断されることがあるので、戻ってきたら表示を合わせ直す
+document.addEventListener('visibilitychange', refreshSound);
+refreshSound();
 
 // ---------------------------------------------------------------
 // カメラ（プリセット + 右ドラッグで首振り、ホイールでズーム）
