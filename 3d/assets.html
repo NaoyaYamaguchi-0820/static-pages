@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>three.js フリーアセット図鑑</title>
+<meta name="description" content="three.js で使える無料の3Dモデル・HDRI・PBRテクスチャ・フォントを、ブラウザ上で実際に読み込んで見くらべられる紹介ページ。配布サイトとライセンスの早見表つき。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B0%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:#0f1020; --panel:#191a33; --panel-2:#212241; --text:#e8e9f5;
+    --muted:#a4a7c9; --line:#33355e; --accent:#7c6cff;
+    --cc0:#3fb984; --ccby:#e0a33c; --ccnc:#e0663c; --other:#6f84c8;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --panel:#fff; --panel-2:#f0f1f8; --text:#1b1c30; --muted:#5b5e80; --line:#dfe1ee; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.75;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 20px 72px; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .85rem; margin-bottom: 14px; }
+  .back:hover { color: var(--accent); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); margin: 0 0 8px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  h2 {
+    font-size: 1.2rem; margin: 0 0 6px; letter-spacing: -.01em;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  h2 .num {
+    font-size: .72rem; color: #fff; background: var(--accent); border-radius: 99px;
+    padding: 2px 9px; letter-spacing: .04em; flex: none; align-self: center;
+  }
+  h3 { font-size: .92rem; margin: 26px 0 10px; color: var(--muted); font-weight: 600; }
+  section { margin-top: 52px; scroll-margin-top: 16px; }
+  section > p.sub { color: var(--muted); font-size: .88rem; margin: 0 0 18px; }
+  a { color: var(--accent); }
+
+  /* ---- 目次 ---- */
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 4px; padding: 0; list-style: none; }
+  .toc a {
+    display: inline-block; font-size: .8rem; text-decoration: none; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 5px 14px;
+  }
+  .toc a:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  /* ---- デモ ---- */
+  .demo { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .stage {
+    position: relative; aspect-ratio: 16 / 10; max-height: 60vh; overflow: hidden;
+    border-radius: 12px; border: 1px solid var(--line);
+    background: radial-gradient(120% 120% at 30% 0%, #2b2d55 0%, #141530 70%);
+  }
+  @media (prefers-color-scheme: light) {
+    .stage { background: radial-gradient(120% 120% at 30% 0%, #eef0fb 0%, #d9ddf1 70%); }
+  }
+  .stage canvas { position: absolute; inset: 0; display: block; }
+  .stage .overlay {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; text-align: center;
+    padding: 20px; font-size: .85rem; color: var(--muted); background: rgba(10,10,25,.45);
+  }
+  @media (prefers-color-scheme: light) { .stage .overlay { background: rgba(255,255,255,.6); } }
+  .stage .overlay.hidden { display: none; }
+  .stage .overlay b { color: var(--text); font-size: .92rem; }
+  .bar { width: 190px; height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden; margin: 0 auto; }
+  .bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .2s ease; }
+  .hint {
+    position: absolute; right: 10px; bottom: 8px; font-size: .7rem; color: var(--muted);
+    background: rgba(10,10,25,.5); border-radius: 99px; padding: 2px 10px; pointer-events: none;
+  }
+  @media (prefers-color-scheme: light) { .hint { background: rgba(255,255,255,.72); } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0 0; }
+  .chips button {
+    font: inherit; font-size: .78rem; color: var(--muted); cursor: pointer; white-space: nowrap;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 5px 13px;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .chips button:hover { color: var(--text); }
+  .chips button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .toggles { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 2px 0; font-size: .78rem; color: var(--muted); }
+  .toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toggles input[type="text"] {
+    font: inherit; font-size: .78rem; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; width: 170px;
+  }
+  .meta {
+    margin: 12px 0 0; padding: 11px 13px; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 10px; font-size: .78rem; color: var(--muted); min-height: 3.2em;
+  }
+  .meta b { color: var(--text); font-size: .85rem; }
+  .meta .row { display: block; }
+
+  /* ---- 配布サイトのカード ---- */
+  .sites { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(252px, 1fr)); margin: 0; padding: 0; list-style: none; }
+  a.site {
+    display: flex; flex-direction: column; height: 100%; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 14px 16px;
+    transition: border-color .16s ease, transform .16s ease;
+  }
+  a.site:hover { border-color: var(--accent); transform: translateY(-2px); }
+  a.site .name { font-weight: 700; font-size: .96rem; display: flex; align-items: center; gap: 7px; }
+  a.site .desc { color: var(--muted); font-size: .79rem; margin-top: 4px; flex: 1; }
+  .lic {
+    align-self: flex-start; margin-top: 10px; font-size: .67rem; font-weight: 700; letter-spacing: .02em;
+    border-radius: 99px; padding: 2px 9px; color: #0f1020; white-space: nowrap;
+  }
+  .lic.cc0 { background: var(--cc0); }
+  .lic.ccby { background: var(--ccby); }
+  .lic.ccnc { background: var(--ccnc); }
+  .lic.other { background: var(--other); color: #fff; }
+
+  /* ---- コード・注記 ---- */
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; overflow-x: auto; font-size: .78rem; line-height: 1.65; margin: 0 0 12px;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  p code, li code, td code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: .82em; }
+  .note {
+    margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; font-size: .82rem; color: var(--muted);
+  }
+  .note b { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 0 0 12px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .76rem; white-space: nowrap; }
+  .scroll-x { overflow-x: auto; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+
+  @media (max-width: 620px) {
+    .wrap { padding: 32px 15px 64px; }
+    .demo { padding: 10px; border-radius: 13px; }
+    .stage { aspect-ratio: 4 / 3; }
+    .toggles input[type="text"] { width: 130px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 3Dあそび</a>
+  <h1>🧰 three.js フリーアセット図鑑</h1>
+  <p class="lead">
+    three.js で使える無料アセットを、種類ごとに<b>その場で読み込んで</b>見くらべられるページです。
+    デモに出てくるファイルはすべて three.js のリポジトリに入っているデモ用アセットで、CDN からそのまま読み込んでいます。
+    各セクションの下に、同じ種類のアセットを配っているサイトをまとめました。
+  </p>
+
+  <ul class="toc">
+    <li><a href="#models">① 3Dモデル</a></li>
+    <li><a href="#hdri">② HDRI 環境マップ</a></li>
+    <li><a href="#textures">③ PBRテクスチャ</a></li>
+    <li><a href="#characters">④ キャラ＆モーション</a></li>
+    <li><a href="#fonts">⑤ 3Dテキスト用フォント</a></li>
+    <li><a href="#audio">⑥ 効果音・BGM</a></li>
+    <li><a href="#license">⑦ ライセンスと軽量化</a></li>
+  </ul>
+
+  <div class="note" id="boot-note">
+    <b>ネット接続が必要です。</b> three.js 本体とアセットを CDN（jsDelivr、だめなら unpkg）から読み込みます。
+    デモは下にスクロールして画面に入ったものから順に読み込むので、開いた直後に通信が集中することはありません。
+  </div>
+
+  <!-- ===================== ① モデル ===================== -->
+  <section id="models">
+    <h2><span class="num">01</span>3Dモデル（glTF / GLB）</h2>
+    <p class="sub">
+      three.js で最優先の形式は <code>.glb</code>（glTF のバイナリ版）です。メッシュ・マテリアル・テクスチャ・アニメーションが
+      1ファイルに入り、<code>GLTFLoader</code> だけで読めます。ボタンで切り替えて、ドラッグで回してみてください。
+    </p>
+
+    <div class="demo">
+      <div class="stage" id="stage-models">
+        <div class="overlay" data-role="overlay"><b>読み込み中…</b><div class="bar"><i></i></div></div>
+        <span class="hint">ドラッグで回転 / ホイールで拡大</span>
+      </div>
+      <div class="chips" id="chips-models"></div>
+      <div class="meta" id="meta-models">モデルを選ぶと、出典とライセンスをここに表示します。</div>
+    </div>
+
+    <h3>モデルを配っているサイト</h3>
+    <ul class="sites">
+      <li><a class="site" href="https://polyhaven.com/models" target="_blank" rel="noopener">
+        <span class="name">🪨 Poly Haven</span>
+        <span class="desc">モデル・HDRI・テクスチャが全部CC0。数は多くないが品質が突き抜けている。まず見る場所。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://poly.pizza/" target="_blank" rel="noopener">
+        <span class="name">🍕 Poly Pizza</span>
+        <span class="desc">終了した Google Poly の後継。ローポリ素材が数千点、glTFで直接ダウンロードできる。</span>
+        <span class="lic cc0">CC0 / CC-BY</span></a></li>
+      <li><a class="site" href="https://quaternius.com/" target="_blank" rel="noopener">
+        <span class="name">🧱 Quaternius</span>
+        <span class="desc">ローポリのキャラ・建物・自然物・乗り物をパック単位で配布。アニメーション付きキャラもあり。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://kenney.nl/assets" target="_blank" rel="noopener">
+        <span class="name">🎮 Kenney</span>
+        <span class="desc">ゲーム用の3D/2D/UI/音を大量にCC0で公開。プロトタイプの見た目を一気に揃えたいとき最強。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://sketchfab.com/features/free-3d-models" target="_blank" rel="noopener">
+        <span class="name">🧿 Sketchfab</span>
+        <span class="desc">点数は圧倒的。「Downloadable」＋ライセンスで絞り込む。glTF出力対応。多くは表記義務あり。</span>
+        <span class="lic ccby">CC-BY 中心</span></a></li>
+      <li><a class="site" href="https://github.com/KhronosGroup/glTF-Sample-Assets" target="_blank" rel="noopener">
+        <span class="name">🔬 glTF-Sample-Assets</span>
+        <span class="desc">glTF策定元Khronosの公式サンプル。DamagedHelmet や Sponza など、動作検証の定番が揃う。</span>
+        <span class="lic other">モデル毎</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ② HDRI ===================== -->
+  <section id="hdri">
+    <h2><span class="num">02</span>HDRI 環境マップ</h2>
+    <p class="sub">
+      360度の高ダイナミックレンジ画像を <code>scene.environment</code> に入れるだけで、金属やガラスの映り込みと
+      全体の光がまとめて決まります。ライトを何個も置くより、HDRI 1枚のほうが早くきれいになります。
+    </p>
+
+    <div class="demo">
+      <div class="stage" id="stage-hdri">
+        <div class="overlay" data-role="overlay"><b>読み込み中…</b><div class="bar"><i></i></div></div>
+        <span class="hint">ドラッグで回転</span>
+      </div>
+      <div class="chips" id="chips-hdri"></div>
+      <div class="toggles">
+        <label><input type="checkbox" id="hdri-bg" checked> 背景にも表示する</label>
+        <label><input type="checkbox" id="hdri-metal" checked> 金属にする（オフでプラスチック）</label>
+      </div>
+      <div class="meta" id="meta-hdri">3つの球は左からツルツル・半ツヤ・マットです。同じ球でも、環境が変わると見え方が変わります。</div>
+    </div>
+
+    <h3>HDRI を配っているサイト</h3>
+    <ul class="sites">
+      <li><a class="site" href="https://polyhaven.com/hdris" target="_blank" rel="noopener">
+        <span class="name">🌅 Poly Haven HDRIs</span>
+        <span class="desc">旧HDRI Haven。屋外・屋内・スタジオが700枚以上。1k〜16kから選べる。Web用途は1k〜2kで十分。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://ambientcg.com/list?type=HDRI" target="_blank" rel="noopener">
+        <span class="name">☁️ ambientCG</span>
+        <span class="desc">HDRIとPBRテクスチャの両方をCC0で配布。空だけのHDRIが多く、屋外シーンに使いやすい。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://www.hdri-skies.com/free-hdris/" target="_blank" rel="noopener">
+        <span class="name">🌤️ HDRI Skies</span>
+        <span class="desc">空専門。無料枠のHDRIが数十枚あり、個人・商用ともに利用可（サイトの規約を確認）。</span>
+        <span class="lic other">独自規約</span></a></li>
+      <li><a class="site" href="https://www.hdrlabs.com/sibl/archive.html" target="_blank" rel="noopener">
+        <span class="name">🗄️ sIBL Archive</span>
+        <span class="desc">HDRIの老舗アーカイブ。落ち着いた屋外ロケーションが中心で、古典的な定番素材が多い。</span>
+        <span class="lic ccby">CC-BY-NC 中心</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ③ テクスチャ ===================== -->
+  <section id="textures">
+    <h2><span class="num">03</span>PBRテクスチャ</h2>
+    <p class="sub">
+      PBR素材は「色（map）」「凹凸（normal / bump）」「ざらつき（roughness）」などの画像セットで配られます。
+      チェックを外すと、どのマップが何をしているかが分かります。
+    </p>
+
+    <div class="demo">
+      <div class="stage" id="stage-tex">
+        <div class="overlay" data-role="overlay"><b>読み込み中…</b><div class="bar"><i></i></div></div>
+        <span class="hint">ドラッグで回転</span>
+      </div>
+      <div class="chips" id="chips-tex"></div>
+      <div class="toggles">
+        <label><input type="checkbox" id="tex-map" checked> 色</label>
+        <label><input type="checkbox" id="tex-bump" checked> 凹凸</label>
+        <label><input type="checkbox" id="tex-rough" checked> ざらつき</label>
+      </div>
+      <div class="meta" id="meta-tex"></div>
+    </div>
+
+    <h3>テクスチャを配っているサイト</h3>
+    <ul class="sites">
+      <li><a class="site" href="https://ambientcg.com/" target="_blank" rel="noopener">
+        <span class="name">🧩 ambientCG</span>
+        <span class="desc">旧CC0Textures。PBRセットが2000種以上、解像度別にZIPで落とせる。まずここで足りることが多い。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://polyhaven.com/textures" target="_blank" rel="noopener">
+        <span class="name">🪵 Poly Haven Textures</span>
+        <span class="desc">スキャン由来で継ぎ目が目立ちにくい。木・石・布・地面など、寄りで映る面に強い。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://www.sharetextures.com/" target="_blank" rel="noopener">
+        <span class="name">🧵 ShareTextures</span>
+        <span class="desc">建築系の内外装マテリアルが豊富。床・壁・タイルを探すときに当たりが多い。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://texturecan.com/" target="_blank" rel="noopener">
+        <span class="name">🗺️ TextureCan</span>
+        <span class="desc">タイル状にきれいに繰り返せる素材が中心。必要なマップだけ個別にダウンロードできる。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://github.com/nidorx/matcaps" target="_blank" rel="noopener">
+        <span class="name">🔮 nidorx/matcaps</span>
+        <span class="desc">MatCap（球に映った見た目をそのまま貼る手法）の大型コレクション。<code>MeshMatcapMaterial</code> 用。ライトなしで質感が出る。</span>
+        <span class="lic other">MIT</span></a></li>
+      <li><a class="site" href="https://www.textures.com/free" target="_blank" rel="noopener">
+        <span class="name">📷 Textures.com</span>
+        <span class="desc">老舗の写真テクスチャ。無料枠は1日のダウンロード数と解像度に制限あり。再配布は不可。</span>
+        <span class="lic other">独自規約</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ④ キャラ ===================== -->
+  <section id="characters">
+    <h2><span class="num">04</span>キャラクター＆モーション</h2>
+    <p class="sub">
+      人型を動かしたいときは、モデルとモーションを別々に調達して合成するのが早道です。
+      モデル①のデモに入っている <b>RobotExpressive</b> と <b>Soldier</b> が、まさにその形（スケルトン＋複数クリップ）のサンプルです。
+    </p>
+    <ul class="sites">
+      <li><a class="site" href="https://www.mixamo.com/" target="_blank" rel="noopener">
+        <span class="name">🕺 Mixamo</span>
+        <span class="desc">Adobe運営。無料アカウントで自動リギング＋数千のモーション。FBXで落として Blender で glTF 変換が定番ルート。素材単体の再配布は不可。</span>
+        <span class="lic other">Adobe規約</span></a></li>
+      <li><a class="site" href="https://quaternius.com/packs.html" target="_blank" rel="noopener">
+        <span class="name">🧍 Quaternius Characters</span>
+        <span class="desc">アニメーション込みのローポリキャラパック。CC0なので表記なしでそのまま組み込める。</span>
+        <span class="lic cc0">CC0</span></a></li>
+      <li><a class="site" href="https://readyplayer.me/" target="_blank" rel="noopener">
+        <span class="name">🧑‍🚀 Ready Player Me</span>
+        <span class="desc">ブラウザで作ったアバターを glTF のURLで受け取れる。自作アバターをそのまま three.js に流せる。</span>
+        <span class="lic other">独自規約</span></a></li>
+      <li><a class="site" href="https://hub.vroid.com/" target="_blank" rel="noopener">
+        <span class="name">🎎 VRoid Hub</span>
+        <span class="desc">日本発のVRMアバター共有。<code>three-vrm</code> を併用すれば three.js で表情やボーンを扱える。利用条件はモデル毎。</span>
+        <span class="lic other">モデル毎</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ⑤ フォント ===================== -->
+  <section id="fonts">
+    <h2><span class="num">05</span>3Dテキスト用フォント</h2>
+    <p class="sub">
+      <code>TextGeometry</code> は専用の <code>typeface.json</code> が必要です。three.js に同梱の5書体をそのまま使えます。
+      文字を打ち替えて試してみてください（<b>英数字のみ</b>。日本語は同梱書体に字形が入っていません）。
+    </p>
+
+    <div class="demo">
+      <div class="stage" id="stage-font">
+        <div class="overlay" data-role="overlay"><b>読み込み中…</b><div class="bar"><i></i></div></div>
+        <span class="hint">ドラッグで回転</span>
+      </div>
+      <div class="chips" id="chips-font"></div>
+      <div class="toggles">
+        <label>文字 <input type="text" id="font-text" value="three.js" maxlength="14" spellcheck="false"></label>
+      </div>
+      <div class="meta" id="meta-font"></div>
+    </div>
+
+    <h3>フォントの入手と変換</h3>
+    <ul class="sites">
+      <li><a class="site" href="https://github.com/mrdoob/three.js/tree/dev/examples/fonts" target="_blank" rel="noopener">
+        <span class="name">📦 three.js 同梱フォント</span>
+        <span class="desc">helvetiker / optimer / gentilis / droid sans / droid serif。npm版 three にも入っているのでCDNから直接読める。</span>
+        <span class="lic other">書体毎</span></a></li>
+      <li><a class="site" href="https://gero3.github.io/facetype.js/" target="_blank" rel="noopener">
+        <span class="name">🔁 facetype.js</span>
+        <span class="desc">TTF/OTF をブラウザ上で typeface.json に変換。好きな書体を3D化したいときはここを通す。</span>
+        <span class="lic other">変換ツール</span></a></li>
+      <li><a class="site" href="https://fonts.google.com/?subset=japanese" target="_blank" rel="noopener">
+        <span class="name">🔤 Google Fonts（日本語）</span>
+        <span class="desc">Noto Sans JP などOFLの日本語書体。3D化するなら、使う文字だけサブセット化してから変換しないと巨大になる。</span>
+        <span class="lic other">OFL</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ⑥ 音 ===================== -->
+  <section id="audio">
+    <h2><span class="num">06</span>効果音・BGM</h2>
+    <p class="sub">
+      three.js 側は <code>THREE.Audio</code> / <code>PositionalAudio</code> で3D空間の音を扱えます。音源は下のサイトが定番です。
+    </p>
+    <ul class="sites">
+      <li><a class="site" href="https://soundeffect-lab.info/" target="_blank" rel="noopener">
+        <span class="name">🔊 効果音ラボ</span>
+        <span class="desc">日本語サイト。商用可・報告不要・クレジット表記不要。UI音やゲーム音の質と探しやすさが抜群。</span>
+        <span class="lic cc0">表記不要</span></a></li>
+      <li><a class="site" href="https://maou.audio/" target="_blank" rel="noopener">
+        <span class="name">🎵 魔王魂</span>
+        <span class="desc">BGMと効果音。商用可で、クレジット表記も任意。ゲームの雰囲気作りに使いやすい曲が多い。</span>
+        <span class="lic cc0">表記任意</span></a></li>
+      <li><a class="site" href="https://otologic.jp/" target="_blank" rel="noopener">
+        <span class="name">🎚️ OtoLogic</span>
+        <span class="desc">効果音とジングル。CC-BY と独自ライセンスから選べる形式で、表記すれば商用利用も可能。</span>
+        <span class="lic ccby">CC-BY 等</span></a></li>
+      <li><a class="site" href="https://freesound.org/" target="_blank" rel="noopener">
+        <span class="name">🌐 Freesound</span>
+        <span class="desc">世界最大級の音アーカイブ。CC0で絞り込めば表記不要。環境音や生録音を探すならここ。</span>
+        <span class="lic cc0">CC0 / CC-BY</span></a></li>
+    </ul>
+  </section>
+
+  <!-- ===================== ⑦ ライセンス・軽量化 ===================== -->
+  <section id="license">
+    <h2><span class="num">07</span>ライセンスと軽量化</h2>
+    <p class="sub">アセットは「落とせる＝自由に使える」ではありません。公開前に必ず条件を確認してください。</p>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>表示</th><th>意味</th><th>公開ページで使うとき</th></tr></thead>
+        <tbody>
+          <tr><td><span class="lic cc0">CC0</span></td><td>著作権を放棄（パブリックドメイン相当）</td><td>表記不要・改変自由・商用可。いちばん扱いやすい</td></tr>
+          <tr><td><span class="lic ccby">CC-BY</span></td><td>表示（クレジット）が条件</td><td>作者名・作品名・ライセンス・リンクをページ内に明記する</td></tr>
+          <tr><td><span class="lic ccnc">CC-BY-NC</span></td><td>表示＋非営利のみ</td><td>広告や販売のあるサイトでは使えない。個人の作品置き場なら可</td></tr>
+          <tr><td><span class="lic other">独自規約</span></td><td>サイト独自の利用規約</td><td>「再配布不可」が多い。素材そのものを配る形になっていないか確認する</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>見落としやすい落とし穴。</b>
+      ①静的サイトに <code>.glb</code> を置くと「素材の再配布」に当たる規約があります（Mixamo など）。
+      ②CC-BY はページのどこかに表記が必要で、ソースコードのコメントだけでは足りないと解釈されることがあります。
+      ③AI生成モデル配布サイトは、学習元の権利が不明なものが混ざります。仕事で使うなら CC0 のサイトに寄せるのが安全です。
+    </div>
+
+    <h3>読み込みのコード（このページで使っている書き方）</h3>
+<pre><code>&lt;script type="importmap"&gt;
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+&lt;/script&gt;
+
+&lt;script type="module"&gt;
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+// モデル
+const gltf = await new GLTFLoader().loadAsync('model.glb');
+scene.add(gltf.scene);
+
+// HDRI（環境光＋映り込み）
+const hdr = await new RGBELoader().loadAsync('sky_1k.hdr');
+hdr.mapping = THREE.EquirectangularReflectionMapping;
+scene.environment = hdr;   // scene.background = hdr; で背景にも
+&lt;/script&gt;</code></pre>
+
+    <h3>Web に載せる前の軽量化</h3>
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>対象</th><th>手段</th><th>目安</th></tr></thead>
+        <tbody>
+          <tr><td>形状</td><td>Draco 圧縮（<code>DRACOLoader</code>）</td><td>頂点データが 1/5 〜 1/10 に</td></tr>
+          <tr><td>形状</td><td>Meshopt（<code>gltfpack</code>）</td><td>Draco より展開が速い。アニメ付きに有利</td></tr>
+          <tr><td>テクスチャ</td><td>KTX2 / Basis（<code>KTX2Loader</code>）</td><td>GPUメモリが 1/4 前後。JPEGより転送も軽い</td></tr>
+          <tr><td>テクスチャ</td><td>解像度を落とす</td><td>Webでは 1k〜2k で十分なことが多い</td></tr>
+          <tr><td>HDRI</td><td>1k の <code>.hdr</code> を使う</td><td>4k以上は背景を大写しにするとき以外は過剰</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:12px">
+      変換は <a href="https://github.com/KhronosGroup/glTF-Transform" target="_blank" rel="noopener">glTF-Transform</a> の CLI が便利です。
+      <code>gltf-transform optimize in.glb out.glb --compress draco --texture-compress ktx2</code> のように1コマンドでまとめて処理できます。
+      ブラウザだけで済ませたいときは <a href="https://gltf.report/" target="_blank" rel="noopener">gltf.report</a> で中身の内訳を確認できます。
+    </p>
+  </section>
+
+  <footer>
+    © static-pages ／ three.js フリーアセット図鑑<br>
+    デモに使用しているアセットは <a href="https://github.com/mrdoob/three.js/tree/dev/examples/models" target="_blank" rel="noopener">three.js リポジトリのサンプル</a> を CDN 経由で読み込んだものです。
+    各アセットの権利は、それぞれの作者に帰属します。
+  </footer>
+</div>
+
+<script>
+  // three.js 本体のCDNを決めてから importmap を差し込み、デモ本体を読み込む。
+  // jsDelivr が落ちていたら unpkg に切り替える（ほかの3Dページと同じ方針）。
+  (async () => {
+    const note = document.getElementById('boot-note');
+    const fail = (msg) => {
+      note.innerHTML = '<b>ライブラリを読み込めませんでした。</b> ' + msg +
+        ' 下の各セクションのリンク集は、そのままご覧いただけます。';
+      for (const o of document.querySelectorAll('.overlay')) {
+        o.innerHTML = '<b>デモを表示できません</b><span>リンク集は下にあります</span>';
+      }
+    };
+    if (!('supports' in HTMLScriptElement) || !HTMLScriptElement.supports('importmap')) {
+      fail('お使いのブラウザが import map に対応していません（Chrome 89 / Safari 16.4 / Firefox 108 以降が必要です）。');
+      return;
+    }
+    const bases = [
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/',
+      'https://unpkg.com/three@0.160.0/',
+    ];
+    let base = null;
+    for (const b of bases) {
+      try {
+        const res = await fetch(b + 'package.json', { cache: 'force-cache' });
+        if (res.ok) { base = b; break; }
+      } catch (e) { /* つぎのCDNへ */ }
+    }
+    if (!base) {
+      fail('CDN（cdn.jsdelivr.net / unpkg.com）に接続できませんでした。');
+      return;
+    }
+    window.__THREE_BASE__ = base;
+
+    const map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({
+      imports: { 'three': base + 'build/three.module.js', 'three/addons/': base + 'examples/jsm/' },
+    });
+    document.head.appendChild(map);
+
+    const mod = document.createElement('script');
+    mod.type = 'module';
+    mod.src = 'assets.js';
+    mod.onerror = () => fail('デモ用スクリプト（assets.js）を読み込めませんでした。');
+    document.head.appendChild(mod);
+  })();
+</script>
+</body>
+</html>
