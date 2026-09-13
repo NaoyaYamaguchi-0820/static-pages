@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>つかんでつみき ｜ こどもあそび</title>
+<meta name="description" content="さわると積み木が落ちてきて、つかんで動かせます。本物とおなじように転がって崩れる物理演算つき。1歳から遊べる知育あそび。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9F%A7%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    font-family: "Hiragino Maru Gothic ProN", "ヒラギノ丸ゴ ProN W4", "Yu Gothic", system-ui, sans-serif;
+    background: #eaf3ff;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .btn {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); z-index: 10;
+    width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,.88); color: #4a6c8a; font-size: 22px; line-height: 1;
+    display: grid; place-items: center; overflow: hidden;
+    font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  }
+  .btn span { position: relative; }
+  /* 自動再生の制限でおとが出ないとき、タップでかいじょするボタン */
+  .sound { left: 10px; }
+  .sound.waiting { animation: soundWait 1.2s ease-in-out infinite; }
+  @keyframes soundWait { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+  @media (prefers-reduced-motion: reduce) { .sound.waiting { animation: none; outline: 3px solid #fff; } }
+  /* つみきをぜんぶ消すボタン */
+  .clear { right: 10px; }
+  .clear:active { background: #ffd9a8; }
+
+  .hint {
+    position: fixed; left: 50%; translate: -50% 0; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 10;
+    background: rgba(255,255,255,.74); color: #4a6c8a; font-size: 15px; font-weight: 700;
+    padding: 7px 18px; border-radius: 99px; pointer-events: none; white-space: nowrap;
+    transition: opacity .6s ease; max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
+  }
+  .hint.off { opacity: 0; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; gap: 14px;
+    text-align: center; padding: 28px; background: #eaf3ff; color: #4a6c8a; font-weight: 700;
+  }
+  .overlay.off { display: none; }
+  .overlay .big { font-size: clamp(1.1rem, 4.4vw, 1.5rem); }
+  .overlay .small { font-size: .85rem; font-weight: 400; line-height: 1.8; }
+  .spin { width: 44px; height: 44px; margin: 0 auto; border-radius: 50%;
+          border: 5px solid #cfe0f3; border-top-color: #6fa8dc; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button class="btn sound" id="sound" aria-label="タップしておとをだす"><span id="soundIcon">🔇</span></button>
+<button class="btn clear" id="clear" aria-label="つみきをぜんぶ消す"><span>🧹</span></button>
+<div class="hint" id="hint">さわると おちてくる　つかむと うごかせる</div>
+
+<div class="overlay" id="overlay">
+  <div class="spin" id="spin"></div>
+  <div class="big" id="ovTitle">よみこみちゅう…</div>
+  <div class="small" id="ovNote">物理エンジンを ネットから よみこんでいます</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------
+  // 物理エンジン（Matter.js）をCDNから読み込む。1つ落ちたらもう一方へ
+  // ---------------------------------------------------------------
+  const CDN = [
+    'https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js',
+    'https://unpkg.com/matter-js@0.20.0/build/matter.min.js',
+  ];
+
+  function loadScript(urls) {
+    return new Promise((resolve, reject) => {
+      let i = 0;
+      const tryNext = () => {
+        if (i >= urls.length) { reject(new Error('すべてのCDNで失敗しました')); return; }
+        const s = document.createElement('script');
+        s.src = urls[i++];
+        s.onload = () => (window.Matter ? resolve() : tryNext());
+        s.onerror = tryNext;
+        document.head.appendChild(s);
+      };
+      tryNext();
+    });
+  }
+
+  const overlay = document.getElementById('overlay');
+  loadScript(CDN).then(start).catch(() => {
+    document.getElementById('spin').style.display = 'none';
+    document.getElementById('ovTitle').textContent = 'よみこめませんでした';
+    document.getElementById('ovNote').innerHTML =
+      'ネットワーク（<code>cdn.jsdelivr.net</code> ／ <code>unpkg.com</code>）への<br>つながりを かくにんしてください。';
+  });
+
+  // ===============================================================
+  function start() {
+    const { Engine, Runner, Composite, Bodies, Body, Constraint, Query, Events, Vector, Sleeping } = window.Matter;
+
+    const cv = document.getElementById('cv');
+    const ctx = cv.getContext('2d');
+    const hint = document.getElementById('hint');
+
+    let W = 0, H = 0, dpr = 1, U = 64, floorH = 24;
+    const MAX_BLOCKS = 34;   // 小さな手で連打されても重くならない上限
+    const WALL = 200;        // 壁の厚み。薄いとすり抜けることがある
+
+    const COLORS = [
+      { f: '#ffa774', e: '#e5824c' },
+      { f: '#84cdf0', e: '#58a7d0' },
+      { f: '#ffd469', e: '#e0b139' },
+      { f: '#a2e0a2', e: '#78be78' },
+      { f: '#f79bc4', e: '#d5749f' },
+      { f: '#b9a8f2', e: '#9183d4' },
+    ];
+    const FACES = ['🐰','🐱','🐶','🐤','🐸','🐷','🍓','🍌','🍎','⭐','🌸','🚗','🎈','🐟','🦋','🐘'];
+    // ペンタトニックなので、どの順に鳴っても音が濁らない
+    const PENTA = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
+
+    // ---- 音（外部ファイルなしで合成） ----
+    let ac = null;
+    function audio() {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) { ac = new AC(); ac.addEventListener('statechange', refreshSound); }
+      }
+      if (ac && ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+    function tone(freq, type, dur, vol, slideTo, delay) {
+      const a = audio();
+      if (!a) return;
+      const t = a.currentTime + (delay || 0);
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(a.destination);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+    const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+    function seDrop()  { tone(pick(PENTA), 'triangle', 0.3, 0.24); }
+    function seGrab()  { tone(1100, 'sine', 0.1, 0.12); }
+    function seRelease(){ tone(760, 'sine', 0.12, 0.1); }
+    function seHit(power) {
+      const v = Math.min(0.26, 0.05 + power * 0.035);
+      tone(pick(PENTA), 'triangle', 0.16, v);
+      tone(150 + Math.random() * 60, 'sine', 0.12, v * 0.5);
+    }
+    function seSweep() {
+      tone(880, 'sine', 0.45, 0.18, 220);
+      [523.25, 659.25, 783.99].forEach((f, i) => tone(f, 'triangle', 0.24, 0.16, null, i * 0.07));
+    }
+
+    // ---- おとボタン ----
+    // AudioContext はユーザー操作があるまで suspended のままで音が出ない。
+    // 「押せば必ず音が出る」入口をひとつ置き、いま鳴らせる状態かどうかも見せる。
+    const soundBtn = document.getElementById('sound');
+    const soundIcon = document.getElementById('soundIcon');
+    function refreshSound() {
+      const ready = !!ac && ac.state === 'running';
+      soundIcon.textContent = ready ? '🔊' : '🔇';
+      soundBtn.classList.toggle('waiting', !ready);
+      soundBtn.setAttribute('aria-label', ready ? 'おとがでています' : 'タップしておとをだす');
+    }
+    soundBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const a = audio();
+      if (a) {
+        const t = a.currentTime;
+        [523, 784].forEach((f, i) => tone(f, 'sine', 0.4, 0.22, null, i * 0.09));
+      }
+      refreshSound();
+    });
+    document.addEventListener('visibilitychange', refreshSound);
+    refreshSound();
+
+    // ---- 物理エンジン ----
+    const engine = Engine.create({ enableSleeping: true });
+    engine.gravity.y = 1;
+    // 反復回数を上げると、積み上げたときのめり込みとふるえが減る
+    engine.positionIterations = 10;
+    engine.velocityIterations = 8;
+
+    let walls = [];
+    function buildWalls() {
+      if (walls.length) Composite.remove(engine.world, walls);
+      const opt = { isStatic: true, friction: 0.6, restitution: 0.02 };
+      walls = [
+        Bodies.rectangle(W / 2, H - floorH + WALL / 2, W + WALL * 2, WALL, opt), // ゆか（描いている帯の上に乗る）
+        Bodies.rectangle(-WALL / 2, H / 2, WALL, H * 4, opt),                     // ひだりのかべ
+        Bodies.rectangle(W + WALL / 2, H / 2, WALL, H * 4, opt),                  // みぎのかべ
+      ];
+      Composite.add(engine.world, walls);
+    }
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      cv.width = Math.floor(W * dpr);
+      cv.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // 小さな手でもつかめる大きさに。画面が狭いときだけ小さくする
+      U = Math.max(44, Math.min(96, Math.min(W / 5.2, H / 9)));
+      floorH = Math.max(18, H * 0.035);
+      buildWalls();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', () => setTimeout(resize, 300));
+
+    // ---- つみき ----
+    const blocks = [];   // ふるいものから順に入る
+    const puffs = [];
+
+    function addBlock(x) {
+      const color = pick(COLORS);
+      const kind = pick(['box', 'box', 'wide', 'tall', 'circle', 'triangle']);
+      const opt = {
+        friction: 0.55, frictionStatic: 0.9, restitution: 0.08,
+        density: 0.0012, slop: 0.02,
+      };
+      let body;
+      if (kind === 'circle') {
+        body = Bodies.circle(x, -U, U * 0.5, { ...opt, friction: 0.35, restitution: 0.16 });
+      } else if (kind === 'triangle') {
+        body = Bodies.polygon(x, -U, 3, U * 0.66, { ...opt, chamfer: { radius: U * 0.08 } });
+      } else {
+        const w = kind === 'wide' ? U * 1.75 : U * 0.82;
+        const h = kind === 'wide' ? U * 0.72 : (kind === 'tall' ? U * 1.75 : U * 0.82);
+        body = Bodies.rectangle(x, -U, w, h, { ...opt, chamfer: { radius: Math.min(w, h) * 0.16 } });
+      }
+      Body.setAngle(body, (Math.random() - 0.5) * 0.5);
+      body.tsColor = color;
+      body.tsFace = Math.random() < 0.55 ? pick(FACES) : null;
+      body.tsBorn = performance.now();
+
+      Composite.add(engine.world, body);
+      blocks.push(body);
+      seDrop();
+
+      // 増えすぎたら、いちばんふるいものから消える
+      while (blocks.length > MAX_BLOCKS) removeBlock(blocks[0], false);
+    }
+
+    function removeBlock(body, quiet) {
+      const i = blocks.indexOf(body);
+      if (i < 0) return;
+      blocks.splice(i, 1);
+      // つかんでいる途中なら、つないでいるひもも外す
+      for (const [id, g] of grabs) if (g.body === body) { Composite.remove(engine.world, g.constraint); grabs.delete(id); }
+      Composite.remove(engine.world, body);
+      for (let n = 0; n < 7; n++) {
+        puffs.push({
+          x: body.position.x, y: body.position.y,
+          vx: (Math.random() - 0.5) * 3.4, vy: (Math.random() - 0.5) * 3.4 - 1,
+          r: U * (0.12 + Math.random() * 0.16), life: 1, color: body.tsColor.f,
+        });
+      }
+      if (!quiet) seRelease();
+    }
+
+    function clearAll() {
+      if (!blocks.length) { seSweep(); return; }
+      for (const b of [...blocks]) removeBlock(b, true);
+      seSweep();
+    }
+    document.getElementById('clear').addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      audio();
+      clearAll();
+      refreshSound();
+    });
+
+    // ---- つかむ（指ごとに1つ、同時につかめる） ----
+    const grabs = new Map();
+
+    function posOf(e) {
+      const r = cv.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    cv.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      audio();
+      refreshSound();
+      hint.classList.add('off');
+      const p = posOf(e);
+      const hitList = Query.point(blocks, p);
+      const body = hitList[hitList.length - 1];   // かさなっていたら、上にあるものをつかむ
+
+      if (body) {
+        Sleeping.set(body, false);
+        // つかんだ点を、かたむきを戻した「つみきの中の座標」に直す
+        const offset = Vector.rotate({ x: p.x - body.position.x, y: p.y - body.position.y }, -body.angle);
+        const constraint = Constraint.create({
+          pointA: { x: p.x, y: p.y },
+          bodyB: body, pointB: offset,
+          stiffness: 0.22, damping: 0.12, length: 0,
+        });
+        Composite.add(engine.world, constraint);
+        grabs.set(e.pointerId, { body, constraint });
+        body.tsHeld = true;
+        seGrab();
+      } else {
+        addBlock(Math.max(U, Math.min(W - U, p.x)));
+      }
+      if (cv.setPointerCapture) { try { cv.setPointerCapture(e.pointerId); } catch (_) {} }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      const g = grabs.get(e.pointerId);
+      if (!g) return;
+      e.preventDefault();
+      const p = posOf(e);
+      g.constraint.pointA.x = p.x;
+      g.constraint.pointA.y = p.y;
+      Sleeping.set(g.body, false);
+    });
+
+    function endGrab(e) {
+      const g = grabs.get(e.pointerId);
+      if (!g) return;
+      Composite.remove(engine.world, g.constraint);
+      grabs.delete(e.pointerId);
+      g.body.tsHeld = false;
+      // 勢いよく振り回されても飛んでいかないように、はなす速さに上限をつける
+      const v = g.body.velocity;
+      const speed = Math.hypot(v.x, v.y);
+      const LIMIT = 26;
+      if (speed > LIMIT) Body.setVelocity(g.body, { x: v.x / speed * LIMIT, y: v.y / speed * LIMIT });
+      seRelease();
+    }
+    window.addEventListener('pointerup', endGrab);
+    window.addEventListener('pointercancel', endGrab);
+    window.addEventListener('blur', () => { for (const id of [...grabs.keys()]) endGrab({ pointerId: id }); });
+
+    // ---- ぶつかった音 ----
+    let lastHit = 0;
+    Events.on(engine, 'collisionStart', (ev) => {
+      const now = performance.now();
+      if (now - lastHit < 55) return;              // 鳴りすぎないように間引く
+      for (const pair of ev.pairs) {
+        const a = pair.bodyA, b = pair.bodyB;
+        if (a.isStatic && b.isStatic) continue;
+        const mover = a.isStatic ? b : a;
+        if (now - (mover.tsBorn || 0) < 90) continue;  // 出てきた直後の接触では鳴らさない
+        const rel = a.isStatic || b.isStatic
+          ? Math.hypot(mover.velocity.x, mover.velocity.y)
+          : Math.hypot(a.velocity.x - b.velocity.x, a.velocity.y - b.velocity.y);
+        if (rel > 2.2) { seHit(rel); lastHit = now; break; }
+      }
+    });
+
+    // ---- 描画 ----
+    function drawShape(body) {
+      if (body.circleRadius) {
+        ctx.beginPath();
+        ctx.arc(body.position.x, body.position.y, body.circleRadius, 0, Math.PI * 2);
+        return;
+      }
+      const v = body.vertices;
+      ctx.beginPath();
+      ctx.moveTo(v[0].x, v[0].y);
+      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      ctx.closePath();
+    }
+
+    function draw() {
+      // そら
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#eaf3ff');
+      sky.addColorStop(1, '#cfe4f7');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+      // ゆか
+      ctx.fillStyle = '#e8d3ae';
+      ctx.fillRect(0, H - floorH, W, floorH);
+      ctx.fillStyle = '#d3b98d';
+      ctx.fillRect(0, H - floorH, W, 5);
+
+      // かげ（すこし下にずらして重ねる）
+      ctx.save();
+      ctx.translate(3, 5);
+      ctx.fillStyle = 'rgba(74, 108, 138, .14)';
+      for (const b of blocks) { drawShape(b); ctx.fill(); }
+      ctx.restore();
+
+      // つみき本体
+      for (const b of blocks) {
+        drawShape(b);
+        ctx.fillStyle = b.tsColor.f;
+        ctx.fill();
+        ctx.lineWidth = b.tsHeld ? 5 : 3;
+        ctx.strokeStyle = b.tsHeld ? '#ffffff' : b.tsColor.e;
+        ctx.stroke();
+        if (b.tsFace) {
+          ctx.save();
+          ctx.translate(b.position.x, b.position.y);
+          ctx.rotate(b.angle);
+          ctx.font = (U * 0.5) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(b.tsFace, 0, U * 0.02);
+          ctx.restore();
+        }
+      }
+
+      // 消えるときのけむり
+      for (let i = puffs.length - 1; i >= 0; i--) {
+        const p = puffs[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.16; p.life -= 0.035;
+        if (p.life <= 0) { puffs.splice(i, 1); continue; }
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (0.6 + p.life * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ---- ループ ----
+    Runner.run(Runner.create(), engine);
+    (function frame() {
+      requestAnimationFrame(frame);
+      // 画面の外まで飛び出したものは片付ける（ふつうは壁で止まる）
+      for (const b of [...blocks]) {
+        if (b.position.y > H + U * 6 || b.position.x < -U * 6 || b.position.x > W + U * 6) removeBlock(b, true);
+      }
+      draw();
+    })();
+
+    overlay.classList.add('off');
+    // さいしょに3つ置いておくと、なにをする画面かが伝わりやすい
+    for (let i = 0; i < 3; i++) setTimeout(() => addBlock(W * (0.32 + i * 0.18)), 260 + i * 320);
+    setTimeout(() => hint.classList.add('off'), 7000);
+  }
+})();
+</script>
+</body>
+</html>
