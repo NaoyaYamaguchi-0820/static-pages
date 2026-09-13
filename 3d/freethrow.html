@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>3Dフリースロー</title>
-<meta name="description" content="Three.js と cannon-es（物理エンジン）で作った3Dフリースロー。実寸のコートでボールの飛び方・リングやバックボードでの跳ね返りを確かめられます。">
+<title>3Dシュート練習 ｜ 3Dあそび</title>
+<meta name="description" content="Three.js と cannon-es（物理エンジン）で作った3Dシュート練習。フリースローと3ポイントを実寸コートで打ち分け、ボールの飛び方やリングでの跳ね返りを確かめられます。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%80%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -31,8 +31,9 @@
   #topbar { top: 0; left: 0; right: 0; display: flex; align-items: flex-start; gap: 10px; padding: 12px; pointer-events: none; }
   #topbar > * { pointer-events: auto; }
   #title { padding: 10px 14px; }
-  #title h1 { margin: 0; font-size: 1rem; letter-spacing: -.01em; }
+  #title h1 { margin: 0; font-size: 1rem; letter-spacing: -.01em; white-space: nowrap; }
   #title p { margin: 2px 0 0; font-size: .74rem; color: var(--muted); line-height: 1.5; }
+  #title .sub { display: block; }
   #title a { color: var(--muted); }
 
   #views { margin-left: auto; display: flex; gap: 6px; padding: 6px; }
@@ -64,6 +65,10 @@
     #title p { font-size: .66rem; }
     #views { padding: 4px; gap: 2px; }
     #views button { padding: 6px 7px; font-size: .7rem; }
+    #soundLabel { display: none; }
+    #sound { padding: 9px 11px; }
+    #title .sub { display: none; }
+    .spots button { font-size: .64rem; padding: 5px 1px; }
     #hud { padding: 10px 12px; }
     .row { font-size: .74rem; }
     .row label { width: 5.8em; }
@@ -75,6 +80,26 @@
   .row label { color: var(--muted); width: 6.6em; flex: none; white-space: nowrap; }
   .row input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
   .row .val { width: 4.2em; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+
+  /* 打つ位置えらび */
+  .spots { display: flex; gap: 5px; flex: 1; min-width: 0; }
+  .spots button {
+    flex: 1; min-width: 0; font: inherit; font-size: .68rem; color: var(--muted);
+    background: #2a2c52; border: 1px solid transparent; border-radius: 7px;
+    padding: 5px 2px; cursor: pointer; white-space: nowrap; letter-spacing: -.02em;
+  }
+  .spots button:hover { color: var(--text); }
+  .spots button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .row .dist { flex: 1; font-size: .76rem; color: var(--muted); }
+  .row .tally { font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .row .tally b { color: var(--accent); font-size: .92rem; }
+  .mini {
+    font: inherit; font-size: .74rem; color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; cursor: pointer; flex: none;
+  }
+  .mini:hover { color: var(--text); }
+  .chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .76rem; width: auto; cursor: pointer; }
+  .chk input { accent-color: var(--accent); }
 
   #gauge { position: relative; height: 12px; border-radius: 99px; background: #2a2c52; overflow: hidden; margin-top: 12px; }
   #gaugeFill { position: absolute; inset: 0 100% 0 0; background: linear-gradient(90deg, #4ad6a0, #ffd166 55%, #ff6b6b); transition: right .04s linear; }
@@ -118,8 +143,8 @@
 
 <div class="ui" id="topbar">
   <div class="panel" id="title">
-    <h1>🏀 3Dフリースロー</h1>
-    <p>Three.js + cannon-es（実寸コート）<br><a href="index.html">← 3Dあそび</a></p>
+    <h1>🏀 3Dシュート練習</h1>
+    <p><span class="sub">フリースロー＋スリーポイント（実寸コート）</span><a href="index.html">← 3Dあそび</a></p>
   </div>
   <div class="panel" id="views">
     <button data-view="shooter" aria-pressed="true">正面</button>
@@ -131,6 +156,17 @@
 </div>
 
 <div class="ui panel" id="hud">
+  <div class="row">
+    <div class="spots" id="spots"></div>
+  </div>
+  <div class="row">
+    <span class="dist" id="distVal"></span>
+    <span class="tally" id="tally">成功 <b>0</b> / 0</span>
+    <button class="mini" id="resetTally" title="成績をリセット">↺</button>
+  </div>
+  <div class="row">
+    <label class="chk" for="autoNext"><input type="checkbox" id="autoNext">3Pは1本ごとに位置を移動</label>
+  </div>
   <div class="row">
     <label for="angle">角度</label>
     <input id="angle" type="range" min="30" max="72" step="1" value="52">
@@ -157,6 +193,7 @@
   <div><b>Space</b> 長押し→離す でも可</div>
   <div><b>右ドラッグ / ホイール</b> … カメラ</div>
   <div><b>1〜4</b> … 視点切替 ／ <b>R</b> … 戻す</div>
+  <div><b>Z / X</b> … 打つ位置を移動</div>
 </div>
 
 <div id="overlay">
@@ -219,10 +256,30 @@ const FT_Z       = 4.60;    // フリースローライン（バックボード�
 const KEY_HALF_W = 2.45;    // 制限区域の半幅
 const ENDLINE_Z  = -1.20;   // エンドライン
 const GRAV       = 9.81;
+const FIXED      = 1 / 240; // 物理の刻み幅。リング（細い棒）をすり抜けないよう細かくする
 
 // バックボード前面を z = 0、シューター側を +z とする
-const HOOP    = new THREE.Vector3(0, RIM_Y, RIM_Z);
-const RELEASE = new THREE.Vector3(0, 1.95, FT_Z + 0.02); // ボールを離す位置
+const HOOP      = new THREE.Vector3(0, RIM_Y, RIM_Z);
+const RELEASE_Y = 1.95;   // ボールを離す高さ
+
+// 打つ位置。phi はリングから見た向き（0がゴール正面、+が右）、dist はリング中心からの距離。
+// 3ポイントラインは 6.75m なので、その少し後ろの 7.0m に立つ。
+const SPOTS = [
+  { id: 'ft', label: 'FT',     name: 'フリースロー', phi: 0,   dist: FT_Z + 0.02 - RIM_Z, three: false },
+  { id: 'l2', label: '左C',    name: '左コーナー',   phi: -64, dist: 7.0, three: true },
+  { id: 'l1', label: '左45',   name: '左45°',        phi: -32, dist: 7.0, three: true },
+  { id: 'tp', label: 'トップ', name: 'トップ',       phi: 0,   dist: 7.0, three: true },
+  { id: 'r1', label: '右45',   name: '右45°',        phi: 32,  dist: 7.0, three: true },
+  { id: 'r2', label: '右C',    name: '右コーナー',   phi: 64,  dist: 7.0, three: true },
+];
+let spotIndex = 0;
+const RELEASE = new THREE.Vector3();   // いまの打点。setSpot で動く
+
+function spotRelease(sp, out = new THREE.Vector3()) {
+  const a = THREE.MathUtils.degToRad(sp.phi);
+  return out.set(HOOP.x + Math.sin(a) * sp.dist, RELEASE_Y, HOOP.z + Math.cos(a) * sp.dist);
+}
+spotRelease(SPOTS[0], RELEASE);
 
 // ---------------------------------------------------------------
 // Three.js 側のセットアップ
@@ -470,11 +527,14 @@ let netPulse = 0;
 // ---------------------------------------------------------------
 // シューター（見た目だけのシルエット。物理には入れていない）
 // ---------------------------------------------------------------
+// 打つ位置が変わるので、原点に組み立てておいて setSpot で動かす。
+// ローカルでは -z 方向がゴール、手は (0, RELEASE_Y, -0.32) にある。
+const shooterRig = new THREE.Group();
+scene.add(shooterRig);
 (() => {
   const skin = new THREE.MeshStandardMaterial({ color: '#1b1d38', roughness: 0.85 });
   const wear = new THREE.MeshStandardMaterial({ color: '#2f3566', roughness: 0.9 });
-  const g = new THREE.Group();
-  g.position.set(0, 0, FT_Z + 0.34); // フリースローラインのすぐ後ろに立つ
+  const g = shooterRig;
 
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.44, 6, 14), wear);
   torso.position.y = 1.16;
@@ -491,7 +551,7 @@ let netPulse = 0;
   });
 
   // 腕はボールを離す位置に向かって伸ばす
-  const hand = RELEASE.clone().sub(g.position);
+  const hand = new THREE.Vector3(0, RELEASE_Y, -0.32);
   [-0.2, 0.2].forEach((x) => {
     const shoulder = new THREE.Vector3(x, 1.36, 0);
     const dir = hand.clone().sub(shoulder);
@@ -502,7 +562,6 @@ let netPulse = 0;
   });
 
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  scene.add(g);
 })();
 
 // ---------------------------------------------------------------
@@ -637,18 +696,35 @@ refreshSound();
 // ---------------------------------------------------------------
 // カメラ（プリセット + 右ドラッグで首振り、ホイールでズーム）
 // ---------------------------------------------------------------
-const VIEWS = {
-  shooter: { target: new THREE.Vector3(0, 2.45, 1.6), radius: 7.2, theta: 0,            phi: 1.38 },
-  side:    { target: new THREE.Vector3(0, 2.30, 2.2), radius: 8.4, theta: Math.PI / 2,  phi: 1.40 },
-  low:     { target: new THREE.Vector3(0, 2.30, 1.8), radius: 7.4, theta: 0.62,         phi: 1.46 },
-  top:     { target: new THREE.Vector3(0, 3.05, 1.0), radius: 4.6, theta: 0,            phi: 0.34 },
+// 視点は「リングと打点をむすぶ線」を基準にして作る。
+// along は リングから打点までのどのあたりを見るか、dTheta はその線からの回りこみ。
+const VIEW_DEFS = {
+  shooter: { ty: 2.45, along: 0.30, rad: (d) => 4.4 + d * 0.68, dTheta: 0,           phi: 1.38 },
+  side:    { ty: 2.30, along: 0.42, rad: (d) => 5.0 + d * 0.80, dTheta: Math.PI / 2, phi: 1.40 },
+  low:     { ty: 2.30, along: 0.33, rad: (d) => 4.6 + d * 0.66, dTheta: 0.62,        phi: 1.46 },
+  top:     { ty: 3.05, along: 0.14, rad: () => 4.6,             dTheta: 0,           phi: 0.34 },
 };
-const cam = { target: VIEWS.shooter.target.clone(), radius: VIEWS.shooter.radius, theta: VIEWS.shooter.theta, phi: VIEWS.shooter.phi };
+function viewFor(name) {
+  const v = VIEW_DEFS[name];
+  const sp = SPOTS[spotIndex];
+  const a = THREE.MathUtils.degToRad(sp.phi);
+  const along = sp.dist * v.along;
+  return {
+    target: new THREE.Vector3(HOOP.x + Math.sin(a) * along, v.ty, HOOP.z + Math.cos(a) * along),
+    radius: v.rad(sp.dist),
+    theta: a + v.dTheta,
+    phi: v.phi,
+  };
+}
+let currentView = 'shooter';
+const first = viewFor('shooter');
+const cam = { target: first.target.clone(), radius: first.radius, theta: first.theta, phi: first.phi };
 const camGoal = { target: cam.target.clone(), radius: cam.radius, theta: cam.theta, phi: cam.phi };
 
 function setView(name) {
-  const v = VIEWS[name];
-  if (!v) return;
+  if (!VIEW_DEFS[name]) return;
+  currentView = name;
+  const v = viewFor(name);
   camGoal.target.copy(v.target);
   camGoal.radius = v.radius;
   camGoal.theta = v.theta;
@@ -677,7 +753,9 @@ function updateCamera(dt) {
 // ---------------------------------------------------------------
 // シュート
 // ---------------------------------------------------------------
-const MIN_SPEED = 4.5, MAX_SPEED = 11.0;
+// ゲージの範囲は打つ位置ごとに決める。距離が変わると必要な初速も変わるため、
+// 固定にすると 3P では目盛りが端に寄ってしまう。
+let spMin = 4.5, spMax = 11.0;
 const MAX_YAW = THREE.MathUtils.degToRad(9); // 左右のブレ幅
 
 const el = {
@@ -692,44 +770,137 @@ const el = {
   power: document.getElementById('powerVal'),
   speed: document.getElementById('speedVal'),
   flash: document.getElementById('flash'),
+  spots: document.getElementById('spots'),
+  dist: document.getElementById('distVal'),
+  tally: document.getElementById('tally'),
+  autoNext: document.getElementById('autoNext'),
+  resetTally: document.getElementById('resetTally'),
 };
 
 let flying = false;
 let power = 0, yaw = 0;
 let restTimer = 0, flightTime = 0, scored = false, landedAt = null;
 
-/** 空気抵抗を無視したときの「ちょうど入る初速」 */
+const LIN_DAMP = 0.02;   // ballBody の linearDamping と同じ値
+
+/**
+ * その角度でリング中心を通る初速。
+ * 計算式だけだと空気抵抗のぶん足りず、距離が伸びる3Pでははっきり届かなくなるので、
+ * 実際と同じ刻み・同じ減衰で飛ばしてみて、二分法で合わせている。
+ */
 function idealSpeed(elev) {
   const dx = Math.hypot(HOOP.x - RELEASE.x, HOOP.z - RELEASE.z);
   const dy = HOOP.y - RELEASE.y;
   const c = Math.cos(elev);
   const denom = 2 * c * c * (dx * Math.tan(elev) - dy);
   if (denom <= 0) return NaN;
-  return Math.sqrt(GRAV * dx * dx / denom);
+  const guess = Math.sqrt(GRAV * dx * dx / denom);   // 抵抗なしのときの解
+
+  // その初速で飛ばして、リングの真上を通るときの高さの差を返す
+  const damp = Math.pow(1 - LIN_DAMP, FIXED);
+  function gapAt(speed) {
+    let vx = speed * Math.cos(elev), vy = speed * Math.sin(elev);
+    let x = 0, y = RELEASE.y;
+    for (let i = 0; i < 900; i++) {
+      vx *= damp; vy *= damp;
+      vy -= GRAV * FIXED;
+      const px = x, py = y;
+      x += vx * FIXED; y += vy * FIXED;
+      if (x >= dx) return py + (y - py) * ((dx - px) / (x - px || 1)) - HOOP.y;
+    }
+    return -Infinity;   // 届かない
+  }
+
+  let lo = guess * 0.85, hi = guess * 1.5;
+  if (gapAt(hi) < 0) return NaN;   // その角度では どんなに強くても届かない
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (gapAt(mid) < 0) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** ゲージの白い目もり。計算が重いので、角度と打つ位置が変わったときだけ呼ぶ */
+function refreshMark() {
+  const ideal = idealSpeed(THREE.MathUtils.degToRad(Number(el.angle.value)));
+  if (Number.isFinite(ideal)) {
+    const p = THREE.MathUtils.clamp((ideal - spMin) / (spMax - spMin), 0, 1);
+    el.mark.style.left = (p * 100) + '%';
+    el.mark.style.display = '';
+  } else {
+    el.mark.style.display = 'none'; // その角度では届かない
+  }
 }
 
 function refreshHud() {
-  const elev = THREE.MathUtils.degToRad(Number(el.angle.value));
   el.angleVal.textContent = el.angle.value + '°';
   el.spinVal.textContent = el.spin.value;
   const r = Number(el.rest.value) / 100;
   el.restVal.textContent = r.toFixed(2);
   cmRim.restitution = r;
 
-  const ideal = idealSpeed(elev);
-  if (Number.isFinite(ideal)) {
-    const p = THREE.MathUtils.clamp((ideal - MIN_SPEED) / (MAX_SPEED - MIN_SPEED), 0, 1);
-    el.mark.style.left = (p * 100) + '%';
-    el.mark.style.display = '';
-  } else {
-    el.mark.style.display = 'none'; // その角度では届かない
-  }
-
   el.fill.style.right = ((1 - power) * 100) + '%';
   el.power.textContent = 'パワー ' + Math.round(power * 100) + '%';
-  el.speed.textContent = (MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power).toFixed(1) + ' m/s';
+  el.speed.textContent = (spMin + (spMax - spMin) * power).toFixed(1) + ' m/s';
 }
 [el.angle, el.spin, el.rest].forEach((i) => i.addEventListener('input', refreshHud));
+el.angle.addEventListener('input', refreshMark);
+
+// ---------------------------------------------------------------
+// 打つ位置（フリースロー／3ポイント5か所）
+// ---------------------------------------------------------------
+let made = 0, attempts = 0;
+
+function refreshTally() {
+  el.tally.innerHTML = '成功 <b>' + made + '</b> / ' + attempts;
+}
+
+/** その位置で必要になる初速のまわりに ゲージの目もりを合わせる */
+function updateSpeedRange() {
+  const mid = idealSpeed(THREE.MathUtils.degToRad(50));
+  if (Number.isFinite(mid)) { spMin = mid * 0.62; spMax = mid * 1.5; }
+}
+
+function setSpot(i) {
+  spotIndex = (i + SPOTS.length) % SPOTS.length;
+  const sp = SPOTS[spotIndex];
+  spotRelease(sp, RELEASE);
+
+  // シューターは打点の 0.32m うしろに立ち、ゴールの方をむく
+  const a = THREE.MathUtils.degToRad(sp.phi);
+  shooterRig.position.set(RELEASE.x + Math.sin(a) * 0.32, 0, RELEASE.z + Math.cos(a) * 0.32);
+  shooterRig.rotation.y = a;
+
+  el.spots.querySelectorAll('button').forEach((b, n) => b.setAttribute('aria-pressed', String(n === spotIndex)));
+  el.dist.textContent = sp.name + '　' + sp.dist.toFixed(1) + 'm' + (sp.three ? '（3P）' : '');
+
+  updateSpeedRange();
+  setView(currentView);   // 視点も打つ位置に合わせて回りこませる
+  resetTrail();
+  resetBall();
+  refreshHud();
+  refreshMark();
+}
+
+// ボタンを組み立てる
+for (const [i, sp] of SPOTS.entries()) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = sp.label;
+  b.title = sp.name + '（' + sp.dist.toFixed(1) + 'm）';
+  b.setAttribute('aria-pressed', String(i === 0));
+  b.addEventListener('click', () => setSpot(i));
+  el.spots.appendChild(b);
+}
+
+/** 3Pの5か所を順にまわる */
+function nextThreeSpot() {
+  const threes = SPOTS.map((sp, i) => (sp.three ? i : -1)).filter((i) => i >= 0);
+  const at = threes.indexOf(spotIndex);
+  return threes[(at + 1) % threes.length];
+}
+
+el.resetTally.addEventListener('click', () => { made = 0; attempts = 0; refreshTally(); });
 
 function holdBall() {
   ballBody.position.set(RELEASE.x, RELEASE.y, RELEASE.z);
@@ -755,7 +926,7 @@ function shoot() {
   initAudio();
 
   const elev = THREE.MathUtils.degToRad(Number(el.angle.value));
-  const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
+  const speed = spMin + (spMax - spMin) * power;
   const spin = Number(el.spin.value);
 
   // シューター→リングの水平方向を yaw だけ左右にずらす
@@ -776,6 +947,8 @@ function shoot() {
 
   flying = true;
   scored = false;
+  attempts++;
+  refreshTally();
   flightTime = 0;
   restTimer = 0;
   landedAt = null;
@@ -844,6 +1017,10 @@ window.addEventListener('keydown', (e) => {
     yaw = Math.max(-MAX_YAW, yaw - THREE.MathUtils.degToRad(0.7));
   } else if (e.code === 'ArrowRight') {
     yaw = Math.min(MAX_YAW, yaw + THREE.MathUtils.degToRad(0.7));
+  } else if (e.code === 'KeyZ') {
+    setSpot(spotIndex - 1);
+  } else if (e.code === 'KeyX') {
+    setSpot(spotIndex + 1);
   } else if (e.code === 'Digit1') { setView('shooter'); }
   else if (e.code === 'Digit2') { setView('side'); }
   else if (e.code === 'Digit3') { setView('low'); }
@@ -860,7 +1037,6 @@ window.addEventListener('keyup', (e) => {
 // ---------------------------------------------------------------
 // メインループ
 // ---------------------------------------------------------------
-const FIXED = 1 / 240; // リング（細い棒）をすり抜けないよう細かく刻む
 const clock = new THREE.Clock();
 const prevPos = new THREE.Vector3().copy(RELEASE);
 
@@ -879,6 +1055,8 @@ function checkPassThrough() {
   const dx = p.x - HOOP.x, dz = p.z - HOOP.z;
   if (Math.hypot(dx, dz) < RIM_R - 0.02) {
     scored = true;
+    made++;
+    refreshTally();
     netPulse = 1;
     flash(flightTime < 1.6 && trailCount > 0 ? 'SWISH!' : 'IN!');
     if (audioCtx) {
@@ -916,8 +1094,9 @@ function tick() {
     const rolledAway = Math.abs(ballBody.position.x) > 9 || ballBody.position.z > 9 || ballBody.position.z < -9;
     if (restTimer > 0.7 || (landedAt !== null && flightTime - landedAt > 2.0) || flightTime > 9 || rolledAway) {
       aimRing.position.set(ballBody.position.x, 0.01, ballBody.position.z);
-      aimRing.visible = true;
-      resetBall();
+      // 3Pで「1本ごとに移動」がONなら、つぎの位置へ回る（setSpot のなかで戻る）
+      if (el.autoNext.checked && SPOTS[spotIndex].three) setSpot(nextThreeSpot());
+      else resetBall();
       aimRing.visible = true; // resetBall で消えるので戻す
     }
   }
@@ -941,8 +1120,8 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-refreshHud();
-resetBall();
+refreshTally();
+setSpot(0);
 setView('shooter');
 updateCamera(1);
 tick();
