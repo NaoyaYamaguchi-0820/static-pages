@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>static-pages</title>
-<meta name="description" content="CDNだけで動く静的ページ置き場。ミニゲーム集、1歳から遊べるこどもあそび、Three.jsの3Dゲーム8本、CSSフレームワーク比較デモ集への入口。">
+<meta name="description" content="CDNだけで動く静的ページ置き場。ブラウザで遊べるゲーム18本（2Dミニゲーム・Three.jsの3Dゲーム・1歳から遊べるこどもあそび）と、CSSフレームワーク比較デモ集への入口。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%84%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -19,109 +19,195 @@
     margin: 0; background: var(--bg); color: var(--text); line-height: 1.7;
     font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
   }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 20px 72px; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 52px 20px 72px; }
   h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 8px; letter-spacing: -.02em; }
-  .lead { color: var(--muted); margin: 0 0 40px; }
-  h2 { font-size: 1.05rem; margin: 40px 0 4px; }
-  h2 + p { color: var(--muted); font-size: .88rem; margin: 0 0 16px; }
-  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
-  ul.two { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .lead { color: var(--muted); margin: 0 0 36px; }
+  h2 {
+    font-size: 1.15rem; margin: 44px 0 4px; display: flex; align-items: baseline; gap: 10px;
+  }
+  h2 .count { font-size: .78rem; font-weight: 400; color: var(--muted); }
+  h2 + p { color: var(--muted); font-size: .86rem; margin: 0 0 18px; }
+  h3 {
+    font-size: .92rem; margin: 26px 0 10px; color: var(--muted); font-weight: 600;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  }
+  h3 .ttl { white-space: nowrap; }
+  h3 .note { font-size: .76rem; font-weight: 400; }
+
+  /* ---- しぼりこみ ---- */
+  .filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+  .filter button {
+    font: inherit; font-size: .8rem; color: var(--muted); cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 5px 14px;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .filter button:hover { color: var(--text); }
+  .filter button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  /* ---- ゲームのカード ---- */
+  .games { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(206px, 1fr)); margin: 0; padding: 0; list-style: none; }
+  a.game {
+    display: flex; flex-direction: column; height: 100%; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+    transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+  }
+  a.game:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.2); }
+  a.game .emoji { font-size: 1.9rem; line-height: 1; margin-bottom: 8px; }
+  a.game .name { font-weight: 700; font-size: 1rem; }
+  a.game .desc { color: var(--muted); font-size: .8rem; margin-top: 3px; flex: 1; }
+  a.game .tag {
+    align-self: flex-start; margin-top: 10px; font-size: .68rem; color: var(--muted);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px;
+  }
+  .hidden { display: none !important; }
+  .empty { color: var(--muted); font-size: .85rem; }
+
+  /* ---- まとめページ・そのほか ---- */
+  ul.rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  ul.rows.two { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
   a.row {
     display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;
     background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px 16px; transition: border-color .15s ease, transform .15s ease;
+    padding: 13px 16px; transition: border-color .15s ease, transform .15s ease;
   }
   a.row:hover { border-color: var(--accent); transform: translateX(3px); }
-  a.row .icon { font-size: 1.3rem; line-height: 1; }
+  a.row .icon { font-size: 1.25rem; line-height: 1; }
   a.row .name { font-weight: 600; }
-  a.row .desc { color: var(--muted); font-size: .82rem; display: block; font-weight: 400; }
+  a.row .desc { color: var(--muted); font-size: .8rem; display: block; font-weight: 400; }
   a.row .arrow { margin-left: auto; color: var(--muted); }
-  a.row.primary { background: var(--panel-2); border-color: var(--accent); }
+
+  .note-box {
+    margin-top: 22px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; font-size: .82rem; color: var(--muted);
+  }
+  .note-box b { color: var(--text); }
   footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
-  footer a { color: var(--muted); }
+
+  /* せまい画面では 2列にして、1画面に入る数をふやす */
+  @media (max-width: 620px) {
+    .wrap { padding: 40px 16px 64px; }
+    .games { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+    a.game { padding: 13px; border-radius: 12px; }
+    a.game .emoji { font-size: 1.6rem; margin-bottom: 6px; }
+    a.game .name { font-size: .9rem; }
+    a.game .desc { font-size: .73rem; }
+    a.game .tag { font-size: .64rem; margin-top: 8px; }
+    .filter button { font-size: .76rem; padding: 4px 12px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <h1>static-pages</h1>
-  <p class="lead">CDNだけで動く静的ページ置き場です。</p>
+  <p class="lead">CDNだけで動く静的ページ置き場です。ブラウザで遊べるゲームは、すべてこのページから直接ひらけます。</p>
 
-  <h2>ミニゲームセンター</h2>
-  <p>ブラウザだけで遊べるミニゲーム集。インストール不要、外部ライブラリなしの1ファイル完結です。</p>
-  <ul>
-    <li>
-      <a class="row primary" href="games/index.html">
-        <span class="icon">🎮</span>
-        <span><span class="name">ミニゲームセンター</span><span class="desc">4本のゲームをまとめた入口</span></span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
-  <ul class="two" style="margin-top:10px">
-    <li><a class="row" href="games/2048.html"><span class="icon">🔢</span><span><span class="name">2048</span><span class="desc">数字を合体させるパズル</span></span></a></li>
-    <li><a class="row" href="games/breakout.html"><span class="icon">🧱</span><span><span class="name">ブロック崩し</span><span class="desc">アイテムありのアクション</span></span></a></li>
-    <li><a class="row" href="games/mogura.html"><span class="icon">🔨</span><span><span class="name">もぐらたたき</span><span class="desc">30秒の反射神経勝負</span></span></a></li>
-    <li><a class="row" href="games/typing.html"><span class="icon">⌨️</span><span><span class="name">ことわざタイピング</span><span class="desc">60秒のローマ字入力</span></span></a></li>
-  </ul>
+  <h2>ゲーム<span class="count">全18本</span></h2>
+  <p>インストール不要。リンクをひらけばそのまま遊べます。</p>
 
-  <h2>3Dあそび</h2>
-  <p>Three.js（描画）と cannon-es（物理演算）をCDNから読み込んで動かす3Dページ集。表示にはネット接続が必要です。</p>
-  <ul>
-    <li>
-      <a class="row primary" href="3d/index.html">
-        <span class="icon">🧊</span>
-        <span><span class="name">3Dあそび</span><span class="desc">8本をまとめた入口</span></span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
-  <ul class="two" style="margin-top:10px">
-    <li><a class="row" href="3d/stack.html"><span class="icon">🏗️</span><span><span class="name">つみつみタワー</span><span class="desc">タップでブロックをつみあげる</span></span></a></li>
-    <li><a class="row" href="3d/balloons.html"><span class="icon">🎈</span><span><span class="name">ふうせんパチン</span><span class="desc">さわるとはじける</span></span></a></li>
-    <li><a class="row" href="3d/fishing.html"><span class="icon">🎣</span><span><span class="name">さかなつり</span><span class="desc">つりばりを動かしてつかまえる</span></span></a></li>
-    <li><a class="row" href="3d/domino.html"><span class="icon">🀄</span><span><span class="name">ドミノたおし</span><span class="desc">なぞってならべて、いっきに倒す</span></span></a></li>
-    <li><a class="row" href="3d/fruits.html"><span class="icon">🍎</span><span><span class="name">くだものキャッチ</span><span class="desc">かごでうけとめる</span></span></a></li>
-    <li><a class="row" href="3d/bowling.html"><span class="icon">🎳</span><span><span class="name">ボウリング</span><span class="desc">ガードつきで必ずとどく</span></span></a></li>
-    <li><a class="row" href="3d/batting.html"><span class="icon">⚾</span><span><span class="name">フリーバッティング</span><span class="desc">7球種を投げ分ける投手と対戦</span></span></a></li>
-    <li><a class="row" href="3d/freethrow.html"><span class="icon">🏀</span><span><span class="name">3Dフリースロー</span><span class="desc">実寸コートで軌道を見る</span></span></a></li>
+  <div class="filter" id="filter">
+    <button data-cat="all" aria-pressed="true">すべて</button>
+    <button data-cat="mini" aria-pressed="false">ミニゲーム</button>
+    <button data-cat="3d" aria-pressed="false">3D</button>
+    <button data-cat="kids" aria-pressed="false">こども向け</button>
+    <button data-cat="adult" aria-pressed="false">おとな向け</button>
+  </div>
+
+  <h3 data-group="mini"><span class="ttl">ブラウザミニゲーム</span><span class="note">外部ライブラリも通信もなし。保存すればオフラインでも動きます</span></h3>
+  <ul class="games" data-group="mini">
+    <li><a class="game" href="games/2048.html" data-cat="mini adult">
+      <span class="emoji">🔢</span><span class="name">2048</span>
+      <span class="desc">同じ数字を合体させて2048を目指す。</span><span class="tag">パズル</span></a></li>
+    <li><a class="game" href="games/breakout.html" data-cat="mini adult">
+      <span class="emoji">🧱</span><span class="name">ブロック崩し</span>
+      <span class="desc">アイテムを拾いながらステージを進む。</span><span class="tag">アクション</span></a></li>
+    <li><a class="game" href="games/mogura.html" data-cat="mini adult">
+      <span class="emoji">🔨</span><span class="name">もぐらたたき</span>
+      <span class="desc">30秒勝負。爆弾を避けて金もぐらを狙う。</span><span class="tag">反射神経</span></a></li>
+    <li><a class="game" href="games/typing.html" data-cat="mini adult">
+      <span class="emoji">⌨️</span><span class="name">ことわざタイピング</span>
+      <span class="desc">60秒でことわざをローマ字入力。</span><span class="tag">タイピング</span></a></li>
   </ul>
 
-  <h2>こどもあそび（1さいごろから）</h2>
-  <p>スコアも勝ち負けもない知育あそび。画面のどこを触っても音や光で反応が返ります。</p>
-  <ul>
-    <li>
-      <a class="row primary" href="kids/index.html">
-        <span class="icon">🧸</span>
-        <span><span class="name">こどもあそび</span><span class="desc">6つのあそびをまとめた入口</span></span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
-  <ul class="two" style="margin-top:10px">
-    <li><a class="row" href="kids/bubbles.html"><span class="icon">🫧</span><span><span class="name">しゃぼんだま</span><span class="desc">さわるとポンッとはじける</span></span></a></li>
-    <li><a class="row" href="kids/animals.html"><span class="icon">🐱</span><span><span class="name">どうぶつタッチ</span><span class="desc">なまえと鳴き声を読み上げ</span></span></a></li>
-    <li><a class="row" href="kids/doodle.html"><span class="icon">🎨</span><span><span class="name">にじいろおえかき</span><span class="desc">なぞると虹色の線とスタンプ</span></span></a></li>
-    <li><a class="row" href="kids/piano.html"><span class="icon">🎵</span><span><span class="name">おとあそび</span><span class="desc">どこを押してもきれいに響く</span></span></a></li>
-    <li><a class="row" href="kids/blocks.html"><span class="icon">🧱</span><span><span class="name">つみき</span><span class="desc">さわると積み木が降ってくる</span></span></a></li>
-    <li><a class="row" href="kids/catch.html"><span class="icon">🐰</span><span><span class="name">どうぶつつかまえ</span><span class="desc">歩きまわる動物をタッチで捕まえる</span></span></a></li>
+  <h3 data-group="3d"><span class="ttl">3Dゲーム</span><span class="note">Three.js と cannon-es をCDNから読み込むため、ネット接続が必要です</span></h3>
+  <ul class="games" data-group="3d">
+    <li><a class="game" href="3d/batting.html" data-cat="3d adult">
+      <span class="emoji">⚾</span><span class="name">フリーバッティング</span>
+      <span class="desc">投手が7球種を投げ分けてくる。ひたすら打つだけ。</span><span class="tag">おとな向け</span></a></li>
+    <li><a class="game" href="3d/freethrow.html" data-cat="3d adult">
+      <span class="emoji">🏀</span><span class="name">3Dフリースロー</span>
+      <span class="desc">実寸コートでボールの飛び方と跳ね返りを見る。</span><span class="tag">おとな向け</span></a></li>
+    <li><a class="game" href="3d/stack.html" data-cat="3d kids">
+      <span class="emoji">🏗️</span><span class="name">つみつみタワー</span>
+      <span class="desc">うごくブロックをタップでつみあげる。</span><span class="tag">こども向け</span></a></li>
+    <li><a class="game" href="3d/balloons.html" data-cat="3d kids">
+      <span class="emoji">🎈</span><span class="name">ふうせんパチン</span>
+      <span class="desc">さわるとはじけて、中から絵が飛び出す。</span><span class="tag">こども向け</span></a></li>
+    <li><a class="game" href="3d/fishing.html" data-cat="3d kids">
+      <span class="emoji">🎣</span><span class="name">さかなつり</span>
+      <span class="desc">つりばりを動かして、およぐさかなをつかまえる。</span><span class="tag">こども向け</span></a></li>
+    <li><a class="game" href="3d/domino.html" data-cat="3d kids">
+      <span class="emoji">🀄</span><span class="name">ドミノたおし</span>
+      <span class="desc">なぞってならべて、いっきに たおす。</span><span class="tag">こども向け</span></a></li>
+    <li><a class="game" href="3d/fruits.html" data-cat="3d kids">
+      <span class="emoji">🍎</span><span class="name">くだものキャッチ</span>
+      <span class="desc">くまさんのかごで くだものを うけとめる。</span><span class="tag">こども向け</span></a></li>
+    <li><a class="game" href="3d/bowling.html" data-cat="3d kids">
+      <span class="emoji">🎳</span><span class="name">ボウリング</span>
+      <span class="desc">みぞにガードがあるので、かならずピンまでとどく。</span><span class="tag">こども向け</span></a></li>
   </ul>
 
-  <h2>CSSフレームワーク比較デモ集</h2>
+  <h3 data-group="kids"><span class="ttl">こどもあそび</span><span class="note">1さいごろから。スコアも勝ち負けも制限時間もありません</span></h3>
+  <ul class="games" data-group="kids">
+    <li><a class="game" href="kids/bubbles.html" data-cat="kids">
+      <span class="emoji">🫧</span><span class="name">しゃぼんだま</span>
+      <span class="desc">さわるとポンッとはじけ、中の絵が飛び出す。</span><span class="tag">1さい〜</span></a></li>
+    <li><a class="game" href="kids/animals.html" data-cat="kids">
+      <span class="emoji">🐱</span><span class="name">どうぶつタッチ</span>
+      <span class="desc">なまえと鳴き声を大きく出して読み上げる。</span><span class="tag">1さい〜</span></a></li>
+    <li><a class="game" href="kids/doodle.html" data-cat="kids">
+      <span class="emoji">🎨</span><span class="name">にじいろおえかき</span>
+      <span class="desc">なぞると虹色の線、押すとスタンプ。</span><span class="tag">1さい〜</span></a></li>
+    <li><a class="game" href="kids/piano.html" data-cat="kids">
+      <span class="emoji">🎵</span><span class="name">おとあそび</span>
+      <span class="desc">どの順で押しても濁らない6色のボタン。</span><span class="tag">1さい〜</span></a></li>
+    <li><a class="game" href="kids/blocks.html" data-cat="kids">
+      <span class="emoji">🧱</span><span class="name">つみき</span>
+      <span class="desc">触ると積み木が降ってきて積み上がる。</span><span class="tag">1さい〜</span></a></li>
+    <li><a class="game" href="kids/catch.html" data-cat="kids">
+      <span class="emoji">🐰</span><span class="name">どうぶつつかまえ</span>
+      <span class="desc">のはらを歩くどうぶつをタッチで捕まえる。</span><span class="tag">1さい〜</span></a></li>
+  </ul>
+
+  <p class="empty hidden" id="empty">えらんだ条件に合うゲームがありません。</p>
+
+  <div class="note-box">
+    <b>音が出ないときは🔇ボタンを押してください。</b>
+    ブラウザは操作があるまで音を鳴らさない決まりになっています。画面をさわれば自動で解除されますが、
+    確実に鳴らしたいときは左上の🔇を押すと確認音が鳴ります。
+    こども向けの各ページの🏠ボタンは、誤操作よけのため<b>約1秒の長押し</b>で戻ります。
+  </div>
+
+  <h2>まとめページ</h2>
+  <p>ジャンルごとの入口です。ハイスコアや遊びかたの説明もこちらにあります。</p>
+  <ul class="rows two">
+    <li><a class="row" href="games/index.html"><span class="icon">🎮</span><span><span class="name">ミニゲームセンター</span><span class="desc">4本／ハイスコア表示つき</span></span><span class="arrow">→</span></a></li>
+    <li><a class="row" href="3d/index.html"><span class="icon">🧊</span><span><span class="name">3Dあそび</span><span class="desc">8本／こども向け・おとな向け</span></span><span class="arrow">→</span></a></li>
+    <li><a class="row" href="kids/index.html"><span class="icon">🧸</span><span><span class="name">こどもあそび</span><span class="desc">6本／1さいごろから</span></span><span class="arrow">→</span></a></li>
+  </ul>
+
+  <h2>CSSフレームワーク比較デモ集<span class="count">10種</span></h2>
   <p>主要なCSSフレームワーク10種を、同じ題材（架空SaaS「Aurora Notes」のLP）で1ページずつ実装しています。</p>
-  <ul>
+  <ul class="rows">
     <li>
-      <a class="row primary" href="css-frameworks/index.html">
+      <a class="row" href="css-frameworks/index.html">
         <span class="icon">🧪</span>
         <span><span class="name">比較トップ</span><span class="desc">一覧比較表・選び方のめやす</span></span>
         <span class="arrow">→</span>
       </a>
     </li>
   </ul>
-
-  <h2>各フレームワークのデモ</h2>
-  <p>それぞれの「らしさ」が出る機能を使って実装しています。</p>
-  <ul class="two">
+  <ul class="rows two" style="margin-top:10px">
     <li><a class="row" href="css-frameworks/bootstrap.html"><span class="icon">🅱️</span><span><span class="name">Bootstrap 5</span><span class="desc">コンポーネント総合デパート</span></span></a></li>
     <li><a class="row" href="css-frameworks/tailwind.html"><span class="icon">🌬️</span><span><span class="name">Tailwind CSS</span><span class="desc">ユーティリティファースト</span></span></a></li>
     <li><a class="row" href="css-frameworks/bulma.html"><span class="icon">💎</span><span><span class="name">Bulma</span><span class="desc">JavaScript完全ゼロ</span></span></a></li>
@@ -139,5 +225,34 @@
   </footer>
 
 </div>
+
+<script>
+  // ゲームのしぼりこみ。JSが動かなくても すべて表示されたままになる
+  (() => {
+    const buttons = document.querySelectorAll('#filter button');
+    const cards = document.querySelectorAll('a.game');
+    const empty = document.getElementById('empty');
+
+    function apply(cat) {
+      for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.cat === cat));
+      for (const card of cards) {
+        const hit = cat === 'all' || card.dataset.cat.split(' ').includes(cat);
+        card.parentElement.classList.toggle('hidden', !hit);
+      }
+      // 見出しとリストは、中身が1つも残らなければ隠す
+      let shown = 0;
+      for (const list of document.querySelectorAll('ul.games')) {
+        const n = list.querySelectorAll('li:not(.hidden)').length;
+        shown += n;
+        list.classList.toggle('hidden', n === 0);
+        const head = document.querySelector(`h3[data-group="${list.dataset.group}"]`);
+        if (head) head.classList.toggle('hidden', n === 0);
+      }
+      empty.classList.toggle('hidden', shown > 0);
+    }
+
+    for (const b of buttons) b.addEventListener('click', () => apply(b.dataset.cat));
+  })();
+</script>
 </body>
 </html>
